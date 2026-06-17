@@ -1,17 +1,22 @@
-// 1. GLOBAL CONFIGURATION & KEYS
-let SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
-let SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
-let GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
+// --- 1. ERROR PROOF INITIALIZATION ---
+let SUPABASE_URL = "";
+let SUPABASE_ANON_KEY = "";
+let GEMINI_API_KEY = "";
 
-let supabase = null;
-
-function initSupabase() {
-    if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+try {
+    SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
+    SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
+    GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
+} catch (error) {
+    alert("Warning: Your browser is blocking local storage. Settings won't save!");
 }
 
-// 2. THE AI SCANNER FUNCTION
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// --- 2. AI SCANNER FUNCTION ---
 async function scanContainerWithAI(base64Image) {
     if (!GEMINI_API_KEY) {
         alert("Please save your Gemini API Key in the Settings tab first!");
@@ -40,7 +45,6 @@ async function scanContainerWithAI(base64Image) {
         const result = await response.json();
         
         if (result.error) {
-            console.error("API Error:", result.error);
             alert("AI Error: " + result.error.message);
             return [];
         }
@@ -49,26 +53,24 @@ async function scanContainerWithAI(base64Image) {
         if (rawText.startsWith("```json")) {
             rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
         }
-        
         return JSON.parse(rawText); 
     } catch (error) {
-        console.error("AI Scanning failed:", error);
-        alert("Failed to parse AI response. See console for details.");
+        alert("Failed to parse AI response.");
         return [];
     }
 }
 
-// 3. MAIN APP INTERFACE LOGIC
+// --- 3. MAIN INTERFACE LOGIC ---
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Visual Diagnostic Test
+    // THE ULTIMATE VISUAL PROOF
     const mainTitle = document.querySelector('h2');
     if (mainTitle) {
-        mainTitle.innerText = "Scan a New Container (JS Active!)";
-        mainTitle.style.color = "#34c759";
+        mainTitle.innerText = "System Online!";
+        mainTitle.style.color = "#007bff"; // Turns the text BLUE
     }
 
-    // --- A. SETTINGS LOGIC ---
+    // A. SETTINGS LOGIC
     const apiKeyInput = document.getElementById('api-key-input');
     const saveSettingsBtn = document.getElementById('btn-save-settings');
     
@@ -77,13 +79,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', () => {
             const userGeminiKey = apiKeyInput.value.trim();
-            localStorage.setItem('locate_gemini_key', userGeminiKey);
-            GEMINI_API_KEY = userGeminiKey;
-            alert("Configuration saved locally on this device!");
+            try {
+                localStorage.setItem('locate_gemini_key', userGeminiKey);
+                GEMINI_API_KEY = userGeminiKey;
+                alert("Configuration saved locally on this device!");
+            } catch (e) {
+                alert("Could not save to device storage.");
+            }
         });
     }
 
-    // --- B. NAVIGATION LOGIC ---
+    // B. NAVIGATION LOGIC
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -100,13 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- C. CAMERA & GRID LOGIC ---
+    // C. CAMERA & GRID LOGIC
     const imageInput = document.getElementById('image-input');
     const loadingStatus = document.getElementById('loading-status');
     const verificationArea = document.getElementById('verification-area');
     const verificationTableBody = document.getElementById('verification-table-body');
     const btnAddManual = document.getElementById('btn-add-manual');
-    const btnSaveBulk = document.getElementById('btn-save-bulk');
 
     if (imageInput) {
         imageInput.addEventListener('change', async (e) => {
@@ -136,7 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (detectedItems && detectedItems.length > 0) {
                     detectedItems.forEach(item => {
-                        addTableRow(item.title, item.description, true);
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox" class="item-confirm" checked></td>
+                            <td><input type="text" class="item-title" value="${item.title}"></td>
+                            <td><input type="text" class="item-desc" value="${item.description}"></td>
+                        `;
+                        verificationTableBody.appendChild(row);
                     });
                     verificationArea.classList.remove('hidden');
                 }
@@ -145,38 +156,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function addTableRow(title = "", description = "", checked = true) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input type="checkbox" class="item-confirm" ${checked ? 'checked' : ''}></td>
-            <td><input type="text" class="item-title" value="${title}" placeholder="Item name"></td>
-            <td><input type="text" class="item-desc" value="${description}" placeholder="Brief description"></td>
-        `;
-        verificationTableBody.appendChild(row);
-    }
-
     if (btnAddManual) {
-        btnAddManual.addEventListener('click', () => addTableRow("", "", true));
-    }
-
-    if (btnSaveBulk) {
-        btnSaveBulk.addEventListener('click', async () => {
-            const targetLocation = document.getElementById('location-select').value;
-            const rows = verificationTableBody.querySelectorAll('tr');
-            let itemsToInsert = [];
-
-            rows.forEach(row => {
-                const keep = row.querySelector('.item-confirm').checked;
-                const title = row.querySelector('.item-title').value.trim();
-                const description = row.querySelector('.item-desc').value.trim();
-                if (keep && title) itemsToInsert.push({ title, description });
-            });
-
-            if (itemsToInsert.length === 0) {
-                alert("No confirmed items to save.");
-                return;
-            }
-            alert("Ready to save " + itemsToInsert.length + " items to Supabase!");
+        btnAddManual.addEventListener('click', () => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="checkbox" class="item-confirm" checked></td>
+                <td><input type="text" class="item-title" placeholder="Name"></td>
+                <td><input type="text" class="item-desc" placeholder="Desc"></td>
+            `;
+            verificationTableBody.appendChild(row);
         });
     }
 });
