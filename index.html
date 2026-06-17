@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find My Things AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- APP CONTENT CONTAINER -->
+    <main id="app-content">
+        
+        <!-- 1. HOME SCREEN -->
+        <section id="screen-home" class="view-panel">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="What are you looking for?">
+                <button id="btn-search">Search</button>
+            </div>
+            <div class="quick-action">
+                <button id="btn-trigger-scan" class="primary-btn">📸 Bulk Scan New Container</button>
+            </div>
+            <div id="search-results"></div>
+        </section>
+
+        <!-- 2. MANAGE ALL ITEMS SCREEN -->
+        <section id="screen-manage" class="view-panel hidden">
+            <h2>Inventory Registry</h2>
+            <div class="table-wrapper">
+                <table id="items-table">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Location</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body"><!-- Dynamic Rows --></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. LOCATIONS SCREEN -->
+        <section id="screen-locations" class="view-panel hidden">
+            <h2>Storage Zones</h2>
+            <div id="location-tree"></div>
+        </section>
+
+        <!-- 4. SETTINGS SCREEN -->
+        <section id="screen-settings" class="view-panel hidden">
+            <h2>Application Settings</h2>
+            <label>Gemini API Key:</label>
+            <input type="password" id="api-key-input">
+            <button id="btn-save-settings">Save Config</button>
+        </section>
+
+    </main>
+
+    <!-- 🧭 BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-target="screen-home">
+            <span class="icon">🏠</span><span class="label">Home</span>
+        </button>
+        <button class="nav-item" data-target="screen-manage">
+            <span class="icon">📦</span><span class="label">Manage Items</span>
+        </button>
+        <button class="nav-item" data-target="screen-locations">
+            <span class="icon">📍</span><span class="label">Locations</span>
+        </button>
+        <button class="nav-item" data-target="screen-settings">
+            <span class="icon">⚙️</span><span class="label">Settings</span>
+        </button>
+    </nav>
+
+    <script src="app.js"></script>
+</body>
+</html>
