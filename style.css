@@ -1,0 +1,211 @@
+/* ==========================================================================
+   1. RESET & CORE VARIABLES (Modern Dark/Light Theme)
+   ========================================================================== */
+:root {
+    --bg-primary: #f8f9fa;
+    --bg-card: #ffffff;
+    --text-main: #212529;
+    --text-muted: #6c757d;
+    --accent: #007aff;       /* Clean iOS Blue */
+    --accent-success: #34c759; /* Green for confirmations */
+    --border-color: #e5e5ea;
+    --nav-height: 65px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden; /* Prevents whole-page bouncing on mobile */
+}
+
+/* ==========================================================================
+   2. APP LAYOUT & VIEWS
+   ========================================================================== */
+#app-content {
+    flex: 1;
+    overflow-y: auto; /* Content scrolls smoothly here */
+    padding: 20px;
+    padding-bottom: calc(var(--nav-height) + 20px); /* Leave space for bottom nav */
+}
+
+.view-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   3. COMPONENTS & FORM UI
+   ========================================================================== */
+h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+/* Unified Buttons */
+button {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+button:active {
+    opacity: 0.8;
+}
+
+.primary-btn {
+    background-color: var(--accent-success);
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.2);
+}
+
+/* Input Fields */
+input[type="text"], input[type="password"], select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 1rem;
+    background-color: var(--bg-card);
+    outline: none;
+}
+
+input:focus, select:focus {
+    border-color: var(--accent);
+}
+
+/* Search Container Layout */
+.search-container {
+    display: flex;
+    gap: 10px;
+}
+.search-container input {
+    flex: 1;
+}
+
+/* ==========================================================================
+   4. BULK SCAN VERIFICATION TABLE/GRID
+   ========================================================================== */
+.table-wrapper {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    background-color: var(--bg-primary);
+    padding: 12px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+}
+
+/* Ensure editable inputs inside the validation table look clean */
+td input {
+    border: none !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px dashed var(--border-color) !important;
+    border-radius: 0 !important;
+    font-size: 0.95rem;
+}
+
+/* Checkbox Styling */
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-success);
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   5. NATIVE-FEEL BOTTOM NAVIGATION BAR
+   ========================================================================== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--nav-height);
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(15px); /* Slick glassmorphism effect */
+    -webkit-backdrop-filter: blur(15px);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom); /* Fixes iPhone home-indicator overlap */
+    z-index: 1000;
+}
+
+.nav-item {
+    background: none;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 10px;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    font-weight: 500;
+}
+
+.nav-item .icon {
+    font-size: 1.3rem;
+}
+
+.nav-item .label {
+    font-size: 0.75rem;
+}
+
+/* Active Navigation State */
+.nav-item.active {
+    color: var(--accent);
+    background: none;
+}
