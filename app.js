@@ -1,61 +1,36 @@
-// Wait for the HTML document to fully load
-document.addEventListener('DOMContentLoaded', () => {
-    const navItems = document.querySelectorAll('.nav-item');
-    const viewPanels = document.querySelectorAll('.view-panel');
+// ==========================================
+// 1. GLOBAL CONFIGURATION & KEYS
+// ==========================================
+// This pulls your keys from the phone's local storage so they actually work!
+let SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
+let SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
+let GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
 
-    // Handle Bottom Navigation Clicks
-    navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            // Get the target screen ID from the button's data-target attribute
-            const currentButton = e.currentTarget;
-            const targetScreenId = currentButton.getAttribute('data-target');
-
-            // 1. Remove 'active' class from all nav buttons
-            navItems.forEach(nav => nav.classList.remove('active'));
-            // 2. Add 'active' class to the clicked button
-            currentButton.classList.add('active');
-
-            // 3. Hide all screen panels
-            viewPanels.forEach(panel => panel.classList.add('hidden'));
-            // 4. Show the target screen panel
-            document.getElementById(targetScreenId).classList.remove('hidden');
-        });
-    });
-});
-
-// Global variables to hold your configurations (Fill these out in your Settings tab later)
-let SUPABASE_URL = "";
-let SUPABASE_ANON_KEY = "";
-let GEMINI_API_KEY = "";
-
-// Initialize Supabase placeholder variable
 let supabase = null;
 
 function initSupabase() {
-    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-        supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 }
 
-/**
- * Sends a base64 encoded image to the Gemini 1.5 Flash API 
- * and requests a structured JSON list of detected items.
- */
+// ==========================================
+// 2. THE AI SCANNER FUNCTION
+// ==========================================
 async function scanContainerWithAI(base64Image) {
+    if (!GEMINI_API_KEY) {
+        alert("Please save your Gemini API Key in the Settings tab first!");
+        return [];
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
     const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words) and a brief Description for each. Return the data strictly as a valid JSON array of objects with 'title' and 'description' keys. Do not use markdown wrappers.";
 
     const payload = {
         contents: [{
             parts: [
                 { text: prompt },
-                {
-                    inlineData: {
-                        mimeType: "image/png",
-                        data: base64Image
-                    }
-                }
+                { inlineData: { mimeType: "image/jpeg", data: base64Image } }
             ]
         }]
     };
@@ -68,19 +43,64 @@ async function scanContainerWithAI(base64Image) {
         });
         
         const result = await response.json();
-        // Clean up text response in case markdown blocks slipped through
-        let rawText = result.candidates[0].content.parts[0].text.trim();
-        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "");
         
-        return JSON.parse(rawText); // Returns the clean array of items
+        if (result.error) {
+            console.error("API Error:", result.error);
+            alert("AI Error: " + result.error.message);
+            return [];
+        }
+
+        let rawText = result.candidates[0].content.parts[0].text.trim();
+        if (rawText.startsWith("```json")) {
+            rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
+        }
+        
+        return JSON.parse(rawText); 
     } catch (error) {
         console.error("AI Scanning failed:", error);
-        alert("Failed to parse AI response. Make sure your API key is correct.");
+        alert("Failed to parse AI response. See console for details.");
         return [];
     }
 }
 
+// ==========================================
+// 3. MAIN APP INTERFACE LOGIC
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- A. SETTINGS LOGIC ---
+    const apiKeyInput = document.getElementById('api-key-input');
+    const saveSettingsBtn = document.getElementById('btn-save-settings');
+    
+    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY; // Pre-fill if exists
+    
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            const userGeminiKey = apiKeyInput.value.trim();
+            localStorage.setItem('locate_gemini_key', userGeminiKey);
+            GEMINI_API_KEY = userGeminiKey; // Update active variable
+            alert("Configuration saved locally on this device!");
+        });
+    }
+
+    // --- B. NAVIGATION LOGIC ---
+    const navItems = document.querySelectorAll('.nav-item');
+    const viewPanels = document.querySelectorAll('.view-panel');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const currentButton = e.currentTarget;
+            const targetScreenId = currentButton.getAttribute('data-target');
+
+            navItems.forEach(nav => nav.classList.remove('active'));
+            currentButton.classList.add('active');
+
+            viewPanels.forEach(panel => panel.classList.add('hidden'));
+            document.getElementById(targetScreenId).classList.remove('hidden');
+        });
+    });
+
+    // --- C. CAMERA & GRID LOGIC ---
     const imageInput = document.getElementById('image-input');
     const loadingStatus = document.getElementById('loading-status');
     const verificationArea = document.getElementById('verification-area');
@@ -88,44 +108,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddManual = document.getElementById('btn-add-manual');
     const btnSaveBulk = document.getElementById('btn-save-bulk');
 
-    let currentSharedImageBase64 = "";
-
-    // 1. Listen for image capture/upload
     if (imageInput) {
         imageInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Show loading text, hide old grid data
+            // UI Feedback
             loadingStatus.classList.remove('hidden');
             verificationArea.classList.add('hidden');
             verificationTableBody.innerHTML = "";
 
-            // Convert image to base64
             const reader = new FileReader();
             reader.onloadend = async () => {
-                currentSharedImageBase64 = reader.result.split(',')[1]; // Strip header data
+                const base64Data = reader.result.split(',')[1]; 
                 
-                // Call our Gemini API wrapper function
-                const detectedItems = await scanContainerWithAI(currentSharedImageBase64);
+                // Call AI
+                const detectedItems = await scanContainerWithAI(base64Data);
                 
-                loadingStatus.classList.add('hidden');
+                loadingStatus.classList.add('hidden'); // Hide loading text
                 
                 if (detectedItems && detectedItems.length > 0) {
-                    // Populate table rows dynamically
                     detectedItems.forEach(item => {
                         addTableRow(item.title, item.description, true);
                     });
-                    verificationArea.classList.remove('hidden');
-                } else {
-                    alert("AI couldn't find any items or key configuration is missing.");
+                    verificationArea.classList.remove('hidden'); // Show grid!
                 }
             };
             reader.readAsDataURL(file);
         });
     }
 
-    // Helper function to inject rows into the verification grid
+    // Helper to add rows to grid
     function addTableRow(title = "", description = "", checked = true) {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -136,14 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
         verificationTableBody.appendChild(row);
     }
 
-    // 2. Allow user to add manual entry rows for items missed by AI
     if (btnAddManual) {
-        btnAddManual.addEventListener('click', () => {
-            addTableRow("", "", true); // Injects a fresh blank row
-        });
+        btnAddManual.addEventListener('click', () => addTableRow("", "", true));
     }
 
-    // 3. Save Confirmed Batch to Supabase
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
             const targetLocation = document.getElementById('location-select').value;
@@ -154,20 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const keep = row.querySelector('.item-confirm').checked;
                 const title = row.querySelector('.item-title').value.trim();
                 const description = row.querySelector('.item-desc').value.trim();
-
-                if (keep && title) {
-                    itemsToInsert.push({ title, description });
-                }
+                if (keep && title) itemsToInsert.push({ title, description });
             });
 
             if (itemsToInsert.length === 0) {
                 alert("No confirmed items to save.");
                 return;
             }
-
-            console.log("Saving items to " + targetLocation, itemsToInsert);
-            // Next step: Insert payload array into Supabase storage and table!
-            alert(`Ready to batch save ${itemsToInsert.length} items to ${targetLocation}!`);
+            alert(`Ready to save ${itemsToInsert.length} items to Supabase!`);
         });
     }
 });
