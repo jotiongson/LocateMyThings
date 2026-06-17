@@ -118,9 +118,21 @@ document.addEventListener('DOMContentLoaded', () => {
             verificationArea.classList.add('hidden');
             verificationTableBody.innerHTML = "";
 
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64Data = reader.result.split(',')[1]; 
+            // --- NEW COMPRESSION LOGIC ---
+            const img = new Image();
+            img.onload = async () => {
+                // Create a temporary canvas to shrink the image
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800; // Resize to max 800px wide
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // Convert shrunk image to base64 (70% quality jpeg)
+                const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
                 
                 // Call AI
                 const detectedItems = await scanContainerWithAI(base64Data);
@@ -134,7 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     verificationArea.classList.remove('hidden'); // Show grid!
                 }
             };
-            reader.readAsDataURL(file);
+            // Load the file into the image object
+            img.src = URL.createObjectURL(file);
         });
     }
 
