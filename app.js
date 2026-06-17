@@ -1,7 +1,4 @@
-// ==========================================
 // 1. GLOBAL CONFIGURATION & KEYS
-// ==========================================
-// This pulls your keys from the phone's local storage so they actually work!
 let SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
 let SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
 let GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
@@ -14,9 +11,7 @@ function initSupabase() {
     }
 }
 
-// ==========================================
 // 2. THE AI SCANNER FUNCTION
-// ==========================================
 async function scanContainerWithAI(base64Image) {
     if (!GEMINI_API_KEY) {
         alert("Please save your Gemini API Key in the Settings tab first!");
@@ -63,29 +58,27 @@ async function scanContainerWithAI(base64Image) {
     }
 }
 
-// ==========================================
 // 3. MAIN APP INTERFACE LOGIC
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    
     // Visual Diagnostic Test
     const mainTitle = document.querySelector('h2');
     if (mainTitle) {
         mainTitle.innerText = "Scan a New Container (JS Active!)";
-        mainTitle.style.color = "#34c759"; // Turns the text green
+        mainTitle.style.color = "#34c759";
     }
-    alert("JavaScript is successfully running!");
-    
+
     // --- A. SETTINGS LOGIC ---
     const apiKeyInput = document.getElementById('api-key-input');
     const saveSettingsBtn = document.getElementById('btn-save-settings');
     
-    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY; // Pre-fill if exists
+    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
     
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', () => {
             const userGeminiKey = apiKeyInput.value.trim();
             localStorage.setItem('locate_gemini_key', userGeminiKey);
-            GEMINI_API_KEY = userGeminiKey; // Update active variable
+            GEMINI_API_KEY = userGeminiKey;
             alert("Configuration saved locally on this device!");
         });
     }
@@ -120,17 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (!file) return;
 
-            // UI Feedback
             loadingStatus.classList.remove('hidden');
             verificationArea.classList.add('hidden');
             verificationTableBody.innerHTML = "";
 
-            // --- NEW COMPRESSION LOGIC ---
             const img = new Image();
             img.onload = async () => {
-                // Create a temporary canvas to shrink the image
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800; // Resize to max 800px wide
+                const MAX_WIDTH = 800;
                 const scaleSize = MAX_WIDTH / img.width;
                 canvas.width = MAX_WIDTH;
                 canvas.height = img.height * scaleSize;
@@ -138,27 +128,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // Convert shrunk image to base64 (70% quality jpeg)
                 const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
                 
-                // Call AI
                 const detectedItems = await scanContainerWithAI(base64Data);
                 
-                loadingStatus.classList.add('hidden'); // Hide loading text
+                loadingStatus.classList.add('hidden');
                 
                 if (detectedItems && detectedItems.length > 0) {
                     detectedItems.forEach(item => {
                         addTableRow(item.title, item.description, true);
                     });
-                    verificationArea.classList.remove('hidden'); // Show grid!
+                    verificationArea.classList.remove('hidden');
                 }
             };
-            // Load the file into the image object
             img.src = URL.createObjectURL(file);
         });
     }
 
-    // Helper to add rows to grid
     function addTableRow(title = "", description = "", checked = true) {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -190,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("No confirmed items to save.");
                 return;
             }
-            alert(`Ready to save ${itemsToInsert.length} items to Supabase!`);
+            alert("Ready to save " + itemsToInsert.length + " items to Supabase!");
         });
     }
 });
