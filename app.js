@@ -67,6 +67,7 @@ async function scanContainerWithAI(base64Image) {
 // 3. MAIN APP INTERFACE LOGIC
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    alert("JavaScript is successfully running!");
     
     // --- A. SETTINGS LOGIC ---
     const apiKeyInput = document.getElementById('api-key-input');
