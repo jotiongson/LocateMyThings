@@ -67,6 +67,12 @@ async function scanContainerWithAI(base64Image) {
 // 3. MAIN APP INTERFACE LOGIC
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    // Visual Diagnostic Test
+    const mainTitle = document.querySelector('h2');
+    if (mainTitle) {
+        mainTitle.innerText = "Scan a New Container (JS Active!)";
+        mainTitle.style.color = "#34c759"; // Turns the text green
+    }
     alert("JavaScript is successfully running!");
     
     // --- A. SETTINGS LOGIC ---
