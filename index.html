@@ -3,28 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find My Things AI</title>
+    <title>LocateMyThings</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- APP CONTENT CONTAINER -->
     <main id="app-content">
         
-        <!-- 1. HOME SCREEN -->
         <section id="screen-home" class="view-panel">
-            <div class="search-container">
-                <input type="text" id="search-input" placeholder="What are you looking for?">
-                <button id="btn-search">Search</button>
+            <h2>Scan a New Container</h2>
+            
+            <div class="form-group">
+                <label for="location-select">Select Target Location:</label>
+                <select id="location-select">
+                    <option value="Garage Table Drawer A">Garage Table Drawer A</option>
+                    <option value="Master Bedroom Closet Bin B">Master Bedroom Closet Bin B</option>
+                    <option value="Kitchen Pantry Top Shelf">Kitchen Pantry Top Shelf</option>
+                </select>
             </div>
-            <div class="quick-action">
-                <button id="btn-trigger-scan" class="primary-btn">📸 Bulk Scan New Container</button>
+
+            <div class="form-group">
+                <label for="image-input" class="primary-btn" style="text-align:center; display:block;">
+                    📸 Take Photo or Upload Image
+                </label>
+                <input type="file" id="image-input" accept="image/*" style="display:none;">
             </div>
-            <div id="search-results"></div>
+
+            <div id="loading-status" class="hidden" style="text-align: center; color: var(--accent); font-weight: bold;">
+                🤖 Gemini AI is processing the container image...
+            </div>
+
+            <div id="verification-area" class="hidden">
+                <h3>Verify Detected Items</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
+                    Uncheck items to ignore them. Click on text to edit names or descriptions.
+                </p>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">Keep</th>
+                                <th>Item Title</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="verification-table-body">
+                            </tbody>
+                    </table>
+                </div>
+
+                <button id="btn-add-manual" style="background-color: var(--text-muted); margin-top: 10px; width: 100%;">
+                    ➕ Add Item AI Missed
+                </button>
+
+                <button id="btn-save-bulk" class="primary-btn" style="margin-top: 20px;">
+                    💾 Save Confirmed Items to Database
+                </button>
+            </div>
         </section>
 
-        <!-- 2. MANAGE ALL ITEMS SCREEN -->
         <section id="screen-manage" class="view-panel hidden">
             <h2>Inventory Registry</h2>
             <div class="table-wrapper">
@@ -38,28 +79,28 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="items-table-body"><!-- Dynamic Rows --></tbody>
+                    <tbody id="items-table-body"></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- 3. LOCATIONS SCREEN -->
         <section id="screen-locations" class="view-panel hidden">
             <h2>Storage Zones</h2>
             <div id="location-tree"></div>
         </section>
 
-        <!-- 4. SETTINGS SCREEN -->
         <section id="screen-settings" class="view-panel hidden">
             <h2>Application Settings</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
+                Your keys are saved locally on this device.
+            </p>
             <label>Gemini API Key:</label>
-            <input type="password" id="api-key-input">
-            <button id="btn-save-settings">Save Config</button>
+            <input type="password" id="api-key-input" placeholder="AIzaSy...">
+            <button id="btn-save-settings" style="margin-top: 10px; width: 100%;">Save Config</button>
         </section>
 
     </main>
 
-    <!-- 🧭 BOTTOM NAVIGATION BAR -->
     <nav class="bottom-nav">
         <button class="nav-item active" data-target="screen-home">
             <span class="icon">🏠</span><span class="label">Home</span>

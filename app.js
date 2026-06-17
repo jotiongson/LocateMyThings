@@ -79,3 +79,95 @@ async function scanContainerWithAI(base64Image) {
         return [];
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const imageInput = document.getElementById('image-input');
+    const loadingStatus = document.getElementById('loading-status');
+    const verificationArea = document.getElementById('verification-area');
+    const verificationTableBody = document.getElementById('verification-table-body');
+    const btnAddManual = document.getElementById('btn-add-manual');
+    const btnSaveBulk = document.getElementById('btn-save-bulk');
+
+    let currentSharedImageBase64 = "";
+
+    // 1. Listen for image capture/upload
+    if (imageInput) {
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show loading text, hide old grid data
+            loadingStatus.classList.remove('hidden');
+            verificationArea.classList.add('hidden');
+            verificationTableBody.innerHTML = "";
+
+            // Convert image to base64
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                currentSharedImageBase64 = reader.result.split(',')[1]; // Strip header data
+                
+                // Call our Gemini API wrapper function
+                const detectedItems = await scanContainerWithAI(currentSharedImageBase64);
+                
+                loadingStatus.classList.add('hidden');
+                
+                if (detectedItems && detectedItems.length > 0) {
+                    // Populate table rows dynamically
+                    detectedItems.forEach(item => {
+                        addTableRow(item.title, item.description, true);
+                    });
+                    verificationArea.classList.remove('hidden');
+                } else {
+                    alert("AI couldn't find any items or key configuration is missing.");
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Helper function to inject rows into the verification grid
+    function addTableRow(title = "", description = "", checked = true) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="checkbox" class="item-confirm" ${checked ? 'checked' : ''}></td>
+            <td><input type="text" class="item-title" value="${title}" placeholder="Item name"></td>
+            <td><input type="text" class="item-desc" value="${description}" placeholder="Brief description"></td>
+        `;
+        verificationTableBody.appendChild(row);
+    }
+
+    // 2. Allow user to add manual entry rows for items missed by AI
+    if (btnAddManual) {
+        btnAddManual.addEventListener('click', () => {
+            addTableRow("", "", true); // Injects a fresh blank row
+        });
+    }
+
+    // 3. Save Confirmed Batch to Supabase
+    if (btnSaveBulk) {
+        btnSaveBulk.addEventListener('click', async () => {
+            const targetLocation = document.getElementById('location-select').value;
+            const rows = verificationTableBody.querySelectorAll('tr');
+            let itemsToInsert = [];
+
+            rows.forEach(row => {
+                const keep = row.querySelector('.item-confirm').checked;
+                const title = row.querySelector('.item-title').value.trim();
+                const description = row.querySelector('.item-desc').value.trim();
+
+                if (keep && title) {
+                    itemsToInsert.push({ title, description });
+                }
+            });
+
+            if (itemsToInsert.length === 0) {
+                alert("No confirmed items to save.");
+                return;
+            }
+
+            console.log("Saving items to " + targetLocation, itemsToInsert);
+            // Next step: Insert payload array into Supabase storage and table!
+            alert(`Ready to batch save ${itemsToInsert.length} items to ${targetLocation}!`);
+        });
+    }
+});
