@@ -154,19 +154,49 @@ window.renderInventoryTable = function() {
 }
 
 function openModal(item) {
-    document.getElementById('modal-img').src = item.image_base64;
+    document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title').innerText = item.title;
     document.getElementById('modal-desc').innerText = item.description;
     document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
+
+    // Build the dropdown options dynamically from your saved zones
+    const datalist = document.getElementById('modal-location-options');
+    if (datalist) {
+        datalist.innerHTML = getSavedLocations().map(loc => `<option value="${loc}">`).join('');
+    }
+
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
 window.saveModalChanges = async () => {
-    const loc = document.getElementById('modal-location').value;
-    await mySupabaseDb.from('items').update({ location: loc }).eq('id', window.activeItemId);
-    document.getElementById('item-modal').classList.add('hidden');
-    loadInventory();
+    const locInput = document.getElementById('modal-location').value.trim();
+    if (!locInput) return alert("Location cannot be empty.");
+
+    // SAFETY NET: If the user typed a completely new location, save it to their zones!
+    let savedLocs = getSavedLocations();
+    if (!savedLocs.includes(locInput)) {
+        savedLocs.push(locInput);
+        localStorage.setItem('locate_custom_zones', JSON.stringify(savedLocs));
+        
+        // Update all other menus in the background so everything stays in sync
+        renderLocationsTab();
+        updateHomeDropdown();
+        populateFilterDropdown(); 
+    }
+
+    // Push the update to the Supabase database
+    const { error } = await mySupabaseDb
+        .from('items')
+        .update({ location: locInput })
+        .eq('id', window.activeItemId);
+
+    if (error) {
+        alert("Error updating database: " + error.message);
+    } else {
+        document.getElementById('item-modal').classList.add('hidden');
+        loadInventory(); // Instantly refreshes the list so you see the change
+    }
 };
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
