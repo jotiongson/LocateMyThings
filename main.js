@@ -63,6 +63,16 @@ window.handleAuth = async () => {
     authBtn.disabled = false;
 };
 
+window.showHome = () => {
+    alert("Navigating to Home...");
+    // If you have a 'home-view' div in your HTML, show it here
+};
+
+window.showManage = () => {
+    alert("Navigating to Manage Items...");
+    // If you have a 'manage-view' div in your HTML, show it here
+};
+
 // Handle logging out
 window.logout = async () => {
     await window.mySupabaseDb.auth.signOut();
