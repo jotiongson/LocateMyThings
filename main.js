@@ -14,7 +14,6 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
     mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// Global list for our dynamic locations
 window.globalLocations = []; 
 
 // --- DYNAMIC LOCATION FETCHER ---
@@ -25,13 +24,27 @@ async function refreshDynamicLocations() {
     if (error || !data) return;
 
     window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
+    
     const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
+    const newLocationOption = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
 
-    const homeDatalist = document.getElementById('home-location-options');
-    if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
+    // 1. Update Home Screen Select
+    const homeSelect = document.getElementById('location-select');
+    if (homeSelect) {
+        homeSelect.innerHTML = `<option value="">-- Select a Location --</option>` + newLocationOption + optionsHtml;
+    }
 
-    const modalDatalist = document.getElementById('modal-location-options');
-    if (modalDatalist) modalDatalist.innerHTML = optionsHtml;
+    // 2. Update Modal Select
+    const modalSelect = document.getElementById('modal-location-select');
+    if (modalSelect) {
+        modalSelect.innerHTML = newLocationOption + optionsHtml;
+    }
+
+    // 3. Update Manage Items Filter
+    const filterSelect = document.getElementById('inventory-filter');
+    if (filterSelect) {
+        filterSelect.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
+    }
 }
 
 // --- 2. AI SCANNER FUNCTION ---
@@ -59,31 +72,62 @@ async function scanContainerWithAI(base64Image) {
 // --- 3. UI INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    const mainTitle = document.querySelector('h2');
-    if (mainTitle && SUPABASE_URL && GEMINI_API_KEY) {
-        // We removed the blue "System Online" text because the TimbreBox style looks better without it
+    if (SUPABASE_URL && GEMINI_API_KEY) {
         refreshDynamicLocations();
     }
 
-    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC
+    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC (HYBRID SYSTEM)
     const locSelect = document.getElementById('location-select');
+    const newLocInput = document.getElementById('new-location-input-home');
     const camBtnLabel = document.getElementById('camera-btn-label');
     const imgInput = document.getElementById('image-input');
 
-    if (locSelect && camBtnLabel && imgInput) {
-        locSelect.addEventListener('input', () => {
-            if (locSelect.value.trim() !== "") {
-                camBtnLabel.style.background = "#20c997";
-                camBtnLabel.style.color = "white";
-                camBtnLabel.style.cursor = "pointer";
-                camBtnLabel.innerText = "📸 Take Photo or Upload Image";
-                imgInput.disabled = false;
+    function checkHomeUnlockStatus() {
+        if(!locSelect || !newLocInput || !camBtnLabel || !imgInput) return;
+        
+        let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
+
+        if (finalVal !== "") {
+            camBtnLabel.style.background = "#20c997";
+            camBtnLabel.style.color = "white";
+            camBtnLabel.style.cursor = "pointer";
+            camBtnLabel.innerText = "📸 Take Photo or Upload Image";
+            imgInput.disabled = false;
+        } else {
+            camBtnLabel.style.background = "#e2e8f0";
+            camBtnLabel.style.color = "#94a3b8";
+            camBtnLabel.style.cursor = "not-allowed";
+            camBtnLabel.innerText = "🔒 Select Location to Unlock Scanner";
+            imgInput.disabled = true;
+        }
+    }
+
+    if (locSelect) {
+        locSelect.addEventListener('change', () => {
+            if (locSelect.value === "NEW") {
+                newLocInput.classList.remove('hidden');
+                newLocInput.focus();
             } else {
-                camBtnLabel.style.background = "#e2e8f0";
-                camBtnLabel.style.color = "#94a3b8";
-                camBtnLabel.style.cursor = "not-allowed";
-                camBtnLabel.innerText = "🔒 Enter Location to Unlock Scanner";
-                imgInput.disabled = true;
+                newLocInput.classList.add('hidden');
+                newLocInput.value = ""; // Clear it if they changed their mind
+            }
+            checkHomeUnlockStatus();
+        });
+    }
+    
+    if (newLocInput) newLocInput.addEventListener('input', checkHomeUnlockStatus);
+
+    // Modal UI Toggle Logic
+    const modalSelect = document.getElementById('modal-location-select');
+    const modalInput = document.getElementById('modal-location-input');
+    if (modalSelect && modalInput) {
+        modalSelect.addEventListener('change', () => {
+            if (modalSelect.value === "NEW") {
+                modalInput.classList.remove('hidden');
+                modalInput.focus();
+            } else {
+                modalInput.classList.add('hidden');
+                modalInput.value = "";
             }
         });
     }
@@ -159,10 +203,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // E. SAVE BULK TO CLOUD
+    // E. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
-        const targetLocation = document.getElementById('location-select').value.trim();
+        const selectElement = document.getElementById('location-select');
+        let targetLocation = selectElement.value;
         
+        if (targetLocation === "NEW") {
+            targetLocation = document.getElementById('new-location-input-home').value.trim();
+        }
+
         if (!targetLocation) {
             alert("Please enter or select a location before saving.");
             return;
@@ -197,9 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('verification-area').classList.add('hidden');
             document.getElementById('verification-table-body').innerHTML = ""; 
             
-            // Clear the location input and lock the camera again for the next scan
-            document.getElementById('location-select').value = "";
-            document.getElementById('location-select').dispatchEvent(new Event('input'));
+            // Reset the home screen inputs
+            selectElement.value = "";
+            document.getElementById('new-location-input-home').classList.add('hidden');
+            selectElement.dispatchEvent(new Event('change'));
             
             refreshDynamicLocations();
         }
@@ -214,18 +264,7 @@ let currentInventory = [];
 async function loadInventory() {
     const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
-    
-    window.globalLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))].sort();
-    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
-    
-    const homeDatalist = document.getElementById('home-location-options');
-    if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
-    const modalDatalist = document.getElementById('modal-location-options');
-    if (modalDatalist) modalDatalist.innerHTML = optionsHtml;
-
-    const filter = document.getElementById('inventory-filter');
-    if (filter) filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
-
+    refreshDynamicLocations(); // Ensure dropdowns are synced
     window.renderInventoryTable();
 }
 
@@ -302,7 +341,6 @@ window.bulkDeleteItems = async function() {
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
         
         loadInventory(); 
-        refreshDynamicLocations(); 
     } catch (err) {
         alert("Error deleting items: " + err.message);
     }
@@ -313,13 +351,29 @@ function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title').innerText = item.title;
     document.getElementById('modal-desc').innerText = item.description;
-    document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
+
+    // Set the dropdown to match the item's location
+    const modalSelect = document.getElementById('modal-location-select');
+    const modalInput = document.getElementById('modal-location-input');
+    
+    if (modalSelect) {
+        modalSelect.value = item.location;
+        modalInput.classList.add('hidden');
+        modalInput.value = "";
+    }
+
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
 window.saveModalChanges = async () => {
-    const locInput = document.getElementById('modal-location').value.trim();
+    const selectElement = document.getElementById('modal-location-select');
+    let locInput = selectElement.value;
+    
+    if (locInput === "NEW") {
+        locInput = document.getElementById('modal-location-input').value.trim();
+    }
+
     if (!locInput) return alert("Location cannot be empty.");
 
     const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
