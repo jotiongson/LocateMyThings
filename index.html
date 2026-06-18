@@ -26,27 +26,28 @@
             </div>
 
             <div class="form-group">
-                <label for="image-input" class="primary-btn" style="text-align:center; display:block;">
+                <label for="image-input" class="primary-btn" style="text-align:center; display:block; padding: 15px; background: #28a745; color: white; border-radius: 5px; cursor: pointer;">
                     📸 Take Photo or Upload Image
                 </label>
-                <input type="file" id="image-input" accept="image/*" capture="environment" style="display:none;">
+                <input type="file" id="image-input" accept="image/*" style="display:none;">
             </div>
 
-            <div id="loading-status" class="hidden" style="text-align: center; color: var(--accent); font-weight: bold;">
+            <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
                 🤖 Gemini AI is processing the container image...
             </div>
 
             <div id="verification-area" class="hidden">
-                <h3>Verify Detected Items</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
+                <h3 style="margin-top: 20px;">Verify Detected Items</h3>
+                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">
                     Uncheck items to ignore them. Click on text to edit names or descriptions.
                 </p>
                 
                 <div class="table-wrapper">
-                    <table>
+                    <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">Keep</th>
+                                <th style="width: 40px; text-align: center;">Keep</th>
+                                <th style="width: 60px; text-align: center;">Image</th>
                                 <th>Item Title</th>
                                 <th>Description</th>
                             </tr>
@@ -56,11 +57,11 @@
                     </table>
                 </div>
 
-                <button id="btn-add-manual" style="background-color: var(--text-muted); margin-top: 10px; width: 100%;">
+                <button id="btn-add-manual" style="background-color: #6c757d; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 10px; width: 100%;">
                     ➕ Add Item AI Missed
                 </button>
 
-                <button id="btn-save-bulk" class="primary-btn" style="margin-top: 20px;">
+                <button id="btn-save-bulk" style="background: #28a745; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
                     💾 Save Confirmed Items to Database
                 </button>
             </div>
@@ -91,12 +92,20 @@
 
         <section id="screen-settings" class="view-panel hidden">
             <h2>Application Settings</h2>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
+            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
                 Your keys are saved locally on this device.
             </p>
+
+            <label>Supabase URL:</label>
+            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            
+            <label>Supabase Anon Key:</label>
+            <input type="password" id="sb-key-input" placeholder="eyJh..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+
             <label>Gemini API Key:</label>
-            <input type="password" id="api-key-input" placeholder="AIzaSy...">
-            <button id="btn-save-settings" style="margin-top: 10px; width: 100%;">Save Config</button>
+            <input type="password" id="api-key-input" placeholder="AIzaSy..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            
+            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold;">Save Configuration</button>
         </section>
 
     </main>
