@@ -87,7 +87,17 @@
 
         <section id="screen-locations" class="view-panel hidden">
             <h2>Storage Zones</h2>
-            <div id="location-tree"></div>
+            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
+                Manage your physical storage containers. These will appear in your Home tab dropdown.
+            </p>
+            
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <input type="text" id="new-location-input" placeholder="e.g., Garage Shelf 3" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                <button onclick="addNewLocation()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold;">➕ Add</button>
+            </div>
+
+            <ul id="locations-list" style="list-style-type: none; padding: 0; margin: 0;">
+                </ul>
         </section>
 
         <section id="screen-settings" class="view-panel hidden">

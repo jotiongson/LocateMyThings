@@ -1,3 +1,12 @@
+Ah, I see what happened! You have the new **Storage Zones** custom list feature at the bottom, but the **Manage Items** filtering logic in the middle still needs to be swapped out so that the filter dropdown actually works.
+
+If you look at section `// --- 4. INVENTORY MANAGEMENT LOGIC ---` in your code above, it's still using the old version that completely resets the table and doesn't know what `window.renderInventoryTable()` or the filter dropdown is.
+
+Let's merge them together perfectly right now. Here is your complete, fully integrated **`main.js`** file with all features fully wired up:
+
+### `main.js` (Complete Integrated Version)
+
+```javascript
 // --- 1. ERROR PROOF INITIALIZATION ---
 let SUPABASE_URL = "";
 let SUPABASE_ANON_KEY = "";
@@ -74,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mainTitle.style.color = "#007bff"; 
     }
 
+    // Pre-populate our custom locations from LocalStorage right away
+    updateHomeDropdown();
+    renderLocationsTab();
+
     // A. SETTINGS LOGIC
     const sbUrlInput = document.getElementById('sb-url-input');
     const sbKeyInput = document.getElementById('sb-key-input');
@@ -125,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetPanel = document.getElementById(targetScreenId);
             if(targetPanel) targetPanel.classList.remove('hidden');
 
-            // NEW: If they clicked the Manage Items tab, fetch the data!
+            // Fetch inventory automatically when moving to the manage screen
             if (targetScreenId === 'screen-manage') {
                 loadInventory();
             }
@@ -281,7 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- 4. INVENTORY MANAGEMENT LOGIC ---
+// --- 4. INVENTORY MANAGEMENT LOGIC (FILTER UPGRADED) ---
+let currentInventory = []; // Holds data in cache for lightning-fast filtering
+
 async function loadInventory() {
     const tableBody = document.getElementById('items-table-body');
     if (!tableBody) return;
@@ -301,30 +316,10 @@ async function loadInventory() {
 
         if (error) throw error;
 
-        tableBody.innerHTML = ''; 
-
-        if (data.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:gray;">No items stored yet. Go scan a drawer!</td></tr>`;
-            return;
-        }
-
-        data.forEach(item => {
-            const tr = document.createElement('tr');
-            
-            // Render the thumbnail, or a grey box if none exists
-            const imageSrc = item.image_base64 ? item.image_base64 : 'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
-
-            tr.innerHTML = `
-                <td style="text-align: center;"><img src="${imageSrc}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"></td>
-                <td style="font-weight: bold;">${item.title || 'Untitled'}</td>
-                <td style="color: #666;">${item.description || ''}</td>
-                <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">📍 ${item.location || 'Unassigned'}</span></td>
-                <td style="text-align: center;">
-                    <button onclick="deleteItem(${item.id})" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
-                </td>
-            `;
-            tableBody.appendChild(tr);
-        });
+        currentInventory = data; 
+        
+        populateFilterDropdown(); // Refresh options in the filter bar
+        window.renderInventoryTable(); // Build the table layout
 
     } catch (err) {
         console.error('Error fetching inventory:', err.message);
@@ -332,10 +327,64 @@ async function loadInventory() {
     }
 }
 
-// Global function so the inline delete button can access it
+function populateFilterDropdown() {
+    const filterDropdown = document.getElementById('inventory-filter');
+    if (!filterDropdown) return;
+
+    const currentSelection = filterDropdown.value;
+
+    // Dynamically discover all unique locations that currently exist in your DB rows
+    const uniqueLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))];
+
+    filterDropdown.innerHTML = `<option value="All">All Locations</option>`;
+    uniqueLocations.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc;
+        option.innerText = loc;
+        filterDropdown.appendChild(option);
+    });
+
+    if (uniqueLocations.includes(currentSelection)) {
+        filterDropdown.value = currentSelection;
+    }
+}
+
+window.renderInventoryTable = function() {
+    const tableBody = document.getElementById('items-table-body');
+    const filterDropdown = document.getElementById('inventory-filter');
+    const selectedLocation = filterDropdown ? filterDropdown.value : "All";
+
+    if (!tableBody) return;
+    tableBody.innerHTML = ''; 
+
+    const filteredData = selectedLocation === "All" 
+        ? currentInventory 
+        : currentInventory.filter(item => item.location === selectedLocation);
+
+    if (filteredData.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:gray;">No items found for this location.</td></tr>`;
+        return;
+    }
+
+    filteredData.forEach(item => {
+        const tr = document.createElement('tr');
+        const imageSrc = item.image_base64 ? item.image_base64 : 'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+        tr.innerHTML = `
+            <td style="text-align: center;"><img src="${imageSrc}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"></td>
+            <td style="font-weight: bold;">${item.title || 'Untitled'}</td>
+            <td style="color: #666;">${item.description || ''}</td>
+            <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location || 'Unassigned'}</span></td>
+            <td style="text-align: center;">
+                <button onclick="deleteItem(${item.id})" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
+
 window.deleteItem = async function(id) {
     if (!confirm("Are you sure you want to permanently delete this item?")) return;
-    
     if (!mySupabaseDb) return;
 
     try {
@@ -345,10 +394,95 @@ window.deleteItem = async function(id) {
             .eq('id', id);
 
         if (error) throw error;
-        
-        // Refresh the list automatically after deletion
         loadInventory();
     } catch (err) {
         alert("Error deleting item: " + err.message);
     }
 };
+
+// --- 5. LOCATIONS MANAGEMENT LOGIC ---
+function getSavedLocations() {
+    const stored = localStorage.getItem('locate_custom_zones');
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    return ["Garage Table Drawer A", "Master Bedroom Closet Bin B", "Kitchen Pantry Top Shelf"];
+}
+
+function saveLocations(locationsArray) {
+    localStorage.setItem('locate_custom_zones', JSON.stringify(locationsArray));
+}
+
+window.addNewLocation = function() {
+    const input = document.getElementById('new-location-input');
+    const newLoc = input.value.trim();
+    if (!newLoc) return;
+
+    const locations = getSavedLocations();
+    if (!locations.includes(newLoc)) {
+        locations.push(newLoc);
+        saveLocations(locations);
+        input.value = ''; 
+        
+        renderLocationsTab();
+        updateHomeDropdown(); 
+        
+        alert(`Added "${newLoc}" to your Storage Zones!`);
+    } else {
+        alert("That location already exists.");
+    }
+}
+
+function renderLocationsTab() {
+    const list = document.getElementById('locations-list');
+    if (!list) return;
+
+    const locations = getSavedLocations();
+    list.innerHTML = '';
+
+    locations.forEach(loc => {
+        const li = document.createElement('li');
+        li.style.cssText = "background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;";
+        li.innerHTML = `
+            <span style="font-weight: bold;">📍 ${loc}</span>
+            <button onclick="removeLocation('${loc}')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+        `;
+        list.appendChild(li);
+    });
+}
+
+window.removeLocation = function(locToRemove) {
+    if (!confirm(`Remove "${locToRemove}" from your menu?\n\n(Note: Items already saved to this location in your database will not be deleted).`)) return;
+    
+    let locations = getSavedLocations();
+    locations = locations.filter(loc => loc !== locToRemove);
+    saveLocations(locations);
+    
+    renderLocationsTab();
+    updateHomeDropdown();
+}
+
+function updateHomeDropdown() {
+    const select = document.getElementById('location-select');
+    if (!select) return;
+
+    const locations = getSavedLocations();
+    const currentVal = select.value;
+
+    select.innerHTML = ''; 
+    
+    locations.forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc;
+        opt.innerText = loc;
+        select.appendChild(opt);
+    });
+
+    if (locations.includes(currentVal)) {
+        select.value = currentVal;
+    }
+}
+
+```
+
+Copy this file entirely, update your GitHub repository, and everything—scanning dropdown selections, tab creation, and item filtering—will act seamlessly as one unified engine!
