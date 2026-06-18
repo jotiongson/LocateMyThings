@@ -119,8 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // D. SAVE BULK
+// D. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
+        const targetLocation = document.getElementById('location-select').value.trim();
+        
+        if (!targetLocation) {
+            alert("Please enter or select a location before saving.");
+            return;
+        }
+
         const rows = document.querySelectorAll('#verification-table-body tr');
         let toInsert = [];
         rows.forEach(row => {
@@ -128,13 +135,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 toInsert.push({ 
                     title: row.querySelector('.item-title').value,
                     description: row.querySelector('.item-desc').value,
-                    location: document.getElementById('location-select').value,
+                    location: targetLocation,
                     image_base64: row.querySelector('.item-img-base64').value
                 });
             }
         });
+
+        if (toInsert.length === 0) {
+            alert("No items selected to save.");
+            return;
+        }
+
+        // SAFETY NET: Learn the new location if they typed one!
+        let savedLocs = getSavedLocations();
+        if (!savedLocs.includes(targetLocation)) {
+            savedLocs.push(targetLocation);
+            localStorage.setItem('locate_custom_zones', JSON.stringify(savedLocs));
+            renderLocationsTab();
+            updateHomeDropdown();
+        }
+
+        document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
+
         const { error } = await mySupabaseDb.from('items').insert(toInsert);
-        if (error) alert(error.message); else { alert("Success!"); loadInventory(); }
+        
+        if (error) {
+            alert("Database Error: " + error.message);
+        } else { 
+            alert("Success!"); 
+            document.getElementById('verification-area').classList.add('hidden');
+            loadInventory(); 
+        }
+        
+        document.getElementById('btn-save-bulk').innerText = "💾 Save Confirmed Items to Database";
     });
 });
 
@@ -297,9 +330,9 @@ function renderLocationsTab() {
 }
 
 function updateHomeDropdown() {
-    const select = document.getElementById('location-select');
-    if (!select) return;
-    select.innerHTML = getSavedLocations().map(l => `<option value="${l}">${l}</option>`).join('');
+    const datalist = document.getElementById('home-location-options');
+    if (!datalist) return;
+    datalist.innerHTML = getSavedLocations().map(l => `<option value="${l}">`).join('');
 }
 
 window.addNewLocation = () => {
