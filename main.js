@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
             viewPanels.forEach(panel => panel.classList.add('hidden'));
             const targetPanel = document.getElementById(targetScreenId);
             if(targetPanel) targetPanel.classList.remove('hidden');
+
+            // NEW: If they clicked the Manage Items tab, fetch the data!
+            if (targetScreenId === 'screen-manage') {
+                loadInventory();
+            }
         });
     });
 
@@ -146,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const img = new Image();
             img.onload = async () => {
-                // Compress original image for the AI
                 const canvas = document.createElement('canvas');
                 const MAX_WIDTH = 800;
                 const scaleSize = MAX_WIDTH / img.width;
@@ -165,9 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (detectedItems && detectedItems.length > 0) {
                     detectedItems.forEach(item => {
                         let thumbHtml = ""; 
-                        let base64StringForDb = ""; // Holds the raw string for Supabase
+                        let base64StringForDb = ""; 
                         
-                        // Crop the thumbnail using the AI's box coordinates
                         if (item.box_2d && item.box_2d.length === 4) {
                             try {
                                 const cropCanvas = document.createElement('canvas');
@@ -213,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manual Add Button
     if (btnAddManual) {
         btnAddManual.addEventListener('click', () => {
             const row = document.createElement('tr');
@@ -227,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Save to Database
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
             if (!mySupabaseDb) {
@@ -262,7 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             btnSaveBulk.innerText = "⏳ Saving to Database...";
 
-            // Pointing directly to your 'items' table
             const { data, error } = await mySupabaseDb
                 .from('items')
                 .insert(itemsToInsert);
@@ -280,3 +280,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- 4. INVENTORY MANAGEMENT LOGIC ---
+async function loadInventory() {
+    const tableBody = document.getElementById('items-table-body');
+    if (!tableBody) return;
+
+    if (!mySupabaseDb) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Database not connected. Check Settings.</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">⏳ Loading your inventory...</td></tr>`;
+
+    try {
+        const { data, error } = await mySupabaseDb
+            .from('items')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        tableBody.innerHTML = ''; 
+
+        if (data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:gray;">No items stored yet. Go scan a drawer!</td></tr>`;
+            return;
+        }
+
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            // Render the thumbnail, or a grey box if none exists
+            const imageSrc = item.image_base64 ? item.image_base64 : 'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+            tr.innerHTML = `
+                <td style="text-align: center;"><img src="${imageSrc}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"></td>
+                <td style="font-weight: bold;">${item.title || 'Untitled'}</td>
+                <td style="color: #666;">${item.description || ''}</td>
+                <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">📍 ${item.location || 'Unassigned'}</span></td>
+                <td style="text-align: center;">
+                    <button onclick="deleteItem(${item.id})" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error fetching inventory:', err.message);
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Failed to load items.</td></tr>`;
+    }
+}
+
+// Global function so the inline delete button can access it
+window.deleteItem = async function(id) {
+    if (!confirm("Are you sure you want to permanently delete this item?")) return;
+    
+    if (!mySupabaseDb) return;
+
+    try {
+        const { error } = await mySupabaseDb
+            .from('items')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        
+        // Refresh the list automatically after deletion
+        loadInventory();
+    } catch (err) {
+        alert("Error deleting item: " + err.message);
+    }
+};
