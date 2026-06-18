@@ -11,19 +11,22 @@
     <main id="app-content">
         
         <section id="screen-home" class="view-panel">
-            <h2>Scan a New Container</h2>
+            <h2 style="margin-bottom: 20px;">Add to Collection</h2>
             
-            <div class="form-group" style="margin-bottom: 15px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Location:</label>
-                <input type="text" id="location-select" list="home-location-options" placeholder="Select or type new location..." autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
+            <div style="border: 2px solid #20c997; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="color: #0f5132; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;">📍 ACTIVE LOCATION</span>
+                    <span style="background-color: #d1e7dd; color: #0f5132; font-size: 0.7rem; font-weight: bold; padding: 3px 8px; border-radius: 12px;">REQUIRED</span>
+                </div>
+                <input type="text" id="location-select" list="home-location-options" placeholder="Set Location to activate Scanner ▼" autocomplete="off" style="width: 100%; border: none; font-size: 1.1rem; color: #20c997; outline: none; background: transparent; padding: 5px 0;">
                 <datalist id="home-location-options"></datalist>
             </div>
 
             <div class="form-group">
-                <label for="image-input" class="primary-btn" style="text-align:center; display:block; padding: 15px; background: #28a745; color: white; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                    📸 Take Photo or Upload Image
+                <label id="camera-btn-label" for="image-input" style="text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                    🔒 Enter Location to Unlock Scanner
                 </label>
-                <input type="file" id="image-input" accept="image/*" style="display:none;">
+                <input type="file" id="image-input" accept="image/*" style="display:none;" disabled>
             </div>
 
             <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
@@ -55,7 +58,7 @@
                     ➕ Add Item AI Missed
                 </button>
 
-                <button id="btn-save-bulk" style="background: #28a745; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
+                <button id="btn-save-bulk" style="background: #20c997; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
                     💾 Save Confirmed Items to Database
                 </button>
             </div>
