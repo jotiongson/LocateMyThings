@@ -29,8 +29,8 @@ async function refreshDynamicLocations() {
     // Filter out duplicates and sort them alphabetically
     window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
 
-    // Build the dropdown HTML
-    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">`).join('');
+    // FIXED: Added the visible text inside the option tags!
+    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
 
     // Inject them into both datalists (Home screen and Modal)
     const homeDatalist = document.getElementById('home-location-options');
@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
             currentButton.classList.add('active');
 
             viewPanels.forEach(p => p.classList.add('hidden'));
-            document.getElementById(target).classList.remove('hidden');
+            const targetElement = document.getElementById(target);
+            if(targetElement) targetElement.classList.remove('hidden');
             
             if (target === 'screen-manage') loadInventory();
         });
@@ -200,7 +201,9 @@ async function loadInventory() {
     
     // Double duty: Update the dynamic dropdowns while we have all the data anyway
     window.globalLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))].sort();
-    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">`).join('');
+    
+    // FIXED: Added the visible text inside the option tags!
+    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
     
     const homeDatalist = document.getElementById('home-location-options');
     if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
@@ -209,13 +212,17 @@ async function loadInventory() {
 
     // Populate the Manage Items filter
     const filter = document.getElementById('inventory-filter');
-    filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
+    if (filter) {
+        filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
+    }
 
     window.renderInventoryTable();
 }
 
 window.renderInventoryTable = function() {
     const tbody = document.getElementById('items-table-body');
+    if(!tbody) return;
+
     const loc = document.getElementById('inventory-filter').value;
     const search = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
@@ -229,7 +236,9 @@ window.renderInventoryTable = function() {
     const countSpan = document.getElementById('inventory-count');
     if (countSpan) countSpan.innerText = `${filteredData.length} Item${filteredData.length !== 1 ? 's' : ''}`;
 
-    document.getElementById('btn-bulk-delete').classList.add('hidden');
+    const btnBulkDelete = document.getElementById('btn-bulk-delete');
+    if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
+    
     const selectAllCb = document.getElementById('select-all-cb');
     if (selectAllCb) selectAllCb.checked = false;
 
