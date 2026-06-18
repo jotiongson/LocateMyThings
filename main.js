@@ -14,6 +14,32 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
     mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+// Global list for our dynamic locations
+window.globalLocations = []; 
+
+// --- DYNAMIC LOCATION FETCHER ---
+// This reads your actual item database to build the location lists automatically!
+async function refreshDynamicLocations() {
+    if (!mySupabaseDb) return;
+    
+    // Grab just the locations from the items table
+    const { data, error } = await mySupabaseDb.from('items').select('location');
+    if (error || !data) return;
+
+    // Filter out duplicates and sort them alphabetically
+    window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
+
+    // Build the dropdown HTML
+    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">`).join('');
+
+    // Inject them into both datalists (Home screen and Modal)
+    const homeDatalist = document.getElementById('home-location-options');
+    if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
+
+    const modalDatalist = document.getElementById('modal-location-options');
+    if (modalDatalist) modalDatalist.innerHTML = optionsHtml;
+}
+
 // --- 2. AI SCANNER FUNCTION ---
 async function scanContainerWithAI(base64Image) {
     if (!GEMINI_API_KEY) {
@@ -43,10 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mainTitle && SUPABASE_URL && GEMINI_API_KEY) {
         mainTitle.innerText = "System Online!";
         mainTitle.style.color = "#007bff"; 
+        
+        // Fetch locations right away to populate the Home screen dropdown!
+        refreshDynamicLocations();
     }
-
-    // NEW: Fetch locations from the cloud immediately on load!
-    loadLocations();
 
     // A. SETTINGS
     const sbUrlInput = document.getElementById('sb-url-input');
@@ -146,12 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // AUTO-LEARN CLOUD LOCATION
-        if (!currentLocations.includes(targetLocation)) {
-            await mySupabaseDb.from('locations').insert({ name: targetLocation });
-            await loadLocations(); // Refresh the cloud list
-        }
-
         document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
 
         const { error } = await mySupabaseDb.from('items').insert(toInsert);
@@ -161,7 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { 
             alert("Success!"); 
             document.getElementById('verification-area').classList.add('hidden');
-            loadInventory(); 
+            document.getElementById('verification-table-body').innerHTML = ""; // Clear the grid
+            
+            // Refresh our dynamic location list in case they typed a new location!
+            refreshDynamicLocations();
         }
         
         document.getElementById('btn-save-bulk').innerText = "💾 Save Confirmed Items to Database";
@@ -174,14 +197,21 @@ let currentInventory = [];
 async function loadInventory() {
     const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
-    populateFilterDropdown();
-    window.renderInventoryTable();
-}
+    
+    // Double duty: Update the dynamic dropdowns while we have all the data anyway
+    window.globalLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))].sort();
+    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">`).join('');
+    
+    const homeDatalist = document.getElementById('home-location-options');
+    if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
+    const modalDatalist = document.getElementById('modal-location-options');
+    if (modalDatalist) modalDatalist.innerHTML = optionsHtml;
 
-function populateFilterDropdown() {
+    // Populate the Manage Items filter
     const filter = document.getElementById('inventory-filter');
-    const locations = [...new Set(currentInventory.map(i => i.location).filter(Boolean))];
-    filter.innerHTML = `<option value="All">All Locations</option>` + locations.map(l => `<option value="${l}">${l}</option>`).join('');
+    filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
+
+    window.renderInventoryTable();
 }
 
 window.renderInventoryTable = function() {
@@ -251,7 +281,9 @@ window.bulkDeleteItems = async function() {
         const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
         if (error) throw error;
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
-        loadInventory(); 
+        
+        loadInventory(); // Refresh the list, which also cleans up empty locations!
+        refreshDynamicLocations(); // Update the home screen
     } catch (err) {
         alert("Error deleting items: " + err.message);
     }
@@ -264,13 +296,6 @@ function openModal(item) {
     document.getElementById('modal-desc').innerText = item.description;
     document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
-
-    // Use cloud locations
-    const datalist = document.getElementById('modal-location-options');
-    if (datalist) {
-        datalist.innerHTML = currentLocations.map(loc => `<option value="${loc}">`).join('');
-    }
-
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
@@ -278,82 +303,13 @@ window.saveModalChanges = async () => {
     const locInput = document.getElementById('modal-location').value.trim();
     if (!locInput) return alert("Location cannot be empty.");
 
-    // AUTO-LEARN CLOUD LOCATION
-    if (!currentLocations.includes(locInput)) {
-        await mySupabaseDb.from('locations').insert({ name: locInput });
-        await loadLocations();
-    }
-
     const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
-    if (error) alert("Error: " + error.message); else {
+    
+    if (error) alert("Error: " + error.message); 
+    else {
         document.getElementById('item-modal').classList.add('hidden');
-        loadInventory();
+        loadInventory(); // This automatically refreshes the dynamic locations too
     }
 };
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
-
-// --- 5. CLOUD LOCATIONS LOGIC ---
-let currentLocations = []; // Holds the cloud locations in memory
-
-async function loadLocations() {
-    if (!mySupabaseDb) return;
-    
-    // Pull the master list from your database, sorted alphabetically
-    const { data, error } = await mySupabaseDb.from('locations').select('name').order('name', { ascending: true });
-    
-    if (!error && data) {
-        currentLocations = data.map(row => row.name);
-        renderLocationsTab();
-        updateHomeDropdown();
-    }
-}
-
-function renderLocationsTab() {
-    const list = document.getElementById('locations-list');
-    if (!list) return;
-    
-    list.innerHTML = currentLocations.map(loc => {
-        // Escape quotes just in case your location has an apostrophe (like "Jim's Box")
-        const safeLoc = loc.replace(/'/g, "\\'");
-        return `<li style="background:#f8f9fa; margin-bottom:10px; padding:15px; border:1px solid #ddd; display:flex; justify-content:space-between; align-items: center;">
-            <span style="font-weight: bold;">📍 ${loc}</span>
-            <button onclick="removeLocation('${safeLoc}')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
-        </li>`;
-    }).join('');
-}
-
-function updateHomeDropdown() {
-    const datalist = document.getElementById('home-location-options');
-    if (!datalist) return;
-    datalist.innerHTML = currentLocations.map(l => `<option value="${l}">`).join('');
-}
-
-window.addNewLocation = async () => {
-    const val = document.getElementById('new-location-input').value.trim();
-    if(!val) return;
-    
-    if(!currentLocations.includes(val)) {
-        const { error } = await mySupabaseDb.from('locations').insert({ name: val });
-        if (error) {
-            alert("Error adding location to database: " + error.message);
-        } else {
-            document.getElementById('new-location-input').value = '';
-            await loadLocations(); // Refresh the list from the cloud
-        }
-    } else {
-        alert("That location already exists!");
-    }
-};
-
-window.removeLocation = async (locToRemove) => {
-    if (!confirm(`Remove "${locToRemove}" from your list?\n\n(Items already in this location won't be deleted).`)) return;
-    
-    const { error } = await mySupabaseDb.from('locations').delete().eq('name', locToRemove);
-    
-    if (error) {
-        alert("Error deleting location: " + error.message);
-    } else {
-        await loadLocations(); // Refresh the list from the cloud
-    }
-};
