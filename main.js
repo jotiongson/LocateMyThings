@@ -1,8 +1,8 @@
 // ==========================================
 // 1. SUPABASE INITIALIZATION
 // ==========================================
-const SUPABASE_URL = "https://etmogzjhmvuwpvbuwryh.supabase.co"; // <-- Paste yours here
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bW9nempobXZ1d3B2YnV3cnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDU2OTUsImV4cCI6MjA5NzI4MTY5NX0.uu8C3xdciivAPYX5EYspOskyDIka7cWNB6jsEIrwWrw"; // <-- Paste yours here
+const SUPABASE_URL = "https://etmogzjhmvuwpvbuwryh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bW9nempobXZ1d3B2YnV3cnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDU2OTUsImV4cCI6MjA5NzI4MTY5NX0.uu8C3xdciivAPYX5EYspOskyDIka7cWNB6jsEIrwWrw";
 
 window.mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
