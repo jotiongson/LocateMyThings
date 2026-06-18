@@ -140,9 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
     
     document.getElementById('btn-save-settings').addEventListener('click', () => {
-        localStorage.setItem('locate_sb_url', sbUrlInput.value.trim());
-        localStorage.setItem('locate_sb_key', sbKeyInput.value.trim());
-        localStorage.setItem('locate_gemini_key', apiKeyInput.value.trim());
+        // Automatically strip whitespace and force URL protocol to lowercase
+        let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
+        let cleanKey = sbKeyInput.value.trim();
+        let cleanGemini = apiKeyInput.value.trim();
+    
+        localStorage.setItem('locate_sb_url', cleanUrl);
+        localStorage.setItem('locate_sb_key', cleanKey);
+        localStorage.setItem('locate_gemini_key', cleanGemini);
+        
         location.reload();
     });
 
