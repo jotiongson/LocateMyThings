@@ -113,21 +113,6 @@
             </div>
         </section>
 
-        <section id="screen-locations" class="view-panel hidden">
-            <h2>Storage Zones</h2>
-            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Manage your physical storage containers. Adding locations here makes them available across the app.
-            </p>
-            
-            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-                <input type="text" id="new-location-input" placeholder="e.g., Garage Shelf 3" autocomplete="off" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
-                <button onclick="addNewLocation()" style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">➕ Add</button>
-            </div>
-
-            <ul id="locations-list" style="list-style-type: none; padding: 0; margin: 0;">
-                </ul>
-        </section>
-
         <section id="screen-settings" class="view-panel hidden">
             <h2>Application Settings</h2>
             <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
@@ -153,10 +138,7 @@
             <span class="icon">🏠</span><span class="label">Home</span>
         </button>
         <button class="nav-item" data-target="screen-manage">
-            <span class="icon">📦</span><span class="label">Manage Items</span>
-        </button>
-        <button class="nav-item" data-target="screen-locations">
-            <span class="icon">📍</span><span class="label">Locations</span>
+            <span class="icon">📦</span><span class="label">Manage</span>
         </button>
         <button class="nav-item" data-target="screen-settings">
             <span class="icon">⚙️</span><span class="label">Settings</span>
