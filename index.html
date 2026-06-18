@@ -64,26 +64,34 @@
         <section id="screen-manage" class="view-panel hidden">
             <h2>Inventory Registry</h2>
             
-            <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
-                <label for="inventory-filter" style="font-weight: bold; margin: 0; white-space: nowrap;">📍 Filter:</label>
-                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." onkeyup="renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+        
+            <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                <select id="inventory-filter" onchange="renderInventoryTable()" style="flex-grow: 1; padding: 8px;">
                     <option value="All">All Locations</option>
                 </select>
             </div>
-
+        
             <div class="table-wrapper">
-                <table id="items-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th>Photo</th>
-                            <th>Title</th>
-                            <th>Description</th>
-                            <th>Location</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
+                <table id="items-table" style="width: 100%;">
                     <tbody id="items-table-body"></tbody>
                 </table>
+            </div>
+        
+            <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box;">
+                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto;">
+                    <img id="modal-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
+                    <h3 id="modal-title" style="margin: 15px 0;"></h3>
+                    <p id="modal-desc" style="color: #666;"></p>
+                    <label>New Location:</label>
+                    <input type="text" id="modal-location" style="width: 100%; margin: 10px 0; padding: 8px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:10px;">💾 Save</button>
+                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:10px;">❌ Close</button>
+                    </div>
+                </div>
             </div>
         </section>
 
