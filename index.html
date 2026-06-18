@@ -8,8 +8,29 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <div id="auth-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center;">
+            <h1 style="color: #20c997; margin-bottom: 5px;">LocateMyThings</h1>
+            <p style="color: #666; margin-bottom: 25px; font-size: 0.9rem;">Organize and find your stuff instantly.</p>
+            
+            <input type="email" id="auth-email" placeholder="Email Address" autocomplete="off" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+            <input type="password" id="auth-password" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+            
+            <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-bottom: 10px;">Log In</button>
+            <button onclick="handleSignup()" style="width: 100%; padding: 12px; background: white; color: #007bff; border: 2px solid #007bff; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer;">Create Account</button>
+            
+            <div id="auth-error" style="color: #dc3545; margin-top: 15px; font-size: 0.85rem; font-weight: bold; min-height: 20px;"></div>
+        </div>
+    </div>
+
     <main id="app-content">
         
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #fff; border-bottom: 1px solid #eee;">
+            <h3 style="margin: 0; color: #333;">LocateMyThings</h3>
+            <button onclick="handleLogout()" style="background: transparent; border: none; color: #dc3545; font-weight: bold; cursor: pointer;">Log Out</button>
+        </header>
+
         <section id="screen-home" class="view-panel">
             <h2 style="margin-bottom: 20px;">Add to Collection</h2>
             
@@ -35,14 +56,12 @@
             </div>
 
             <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
-                ⏳ Gemini AI is analyzing the image...
+                ⏳ Secure AI is analyzing the image...
             </div>
 
             <div id="verification-area" class="hidden">
                 <h3 style="margin-top: 20px;">Verify Detected Items</h3>
-                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">
-                    Uncheck items to ignore them. Edit titles and descriptions directly.
-                </p>
+                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">Uncheck items to ignore them. Edit titles and descriptions directly.</p>
                 
                 <div class="table-wrapper">
                     <table style="width: 100%; border-collapse: collapse;">
@@ -57,10 +76,6 @@
                         <tbody id="verification-table-body"></tbody>
                     </table>
                 </div>
-
-                <button id="btn-add-manual" style="background-color: #6c757d; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 10px; width: 100%; font-weight: bold;">
-                    ➕ Add Item AI Missed
-                </button>
 
                 <button id="btn-save-bulk" style="background: #20c997; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
                     💾 Save Confirmed Items to Database
@@ -122,24 +137,6 @@
             </div>
         </section>
 
-        <section id="screen-settings" class="view-panel hidden">
-            <h2>Application Settings</h2>
-            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Your API keys are stored securely in this browser's local memory.
-            </p>
-
-            <label style="font-weight: bold;">Supabase Project URL:</label>
-            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            
-            <label style="font-weight: bold;">Supabase Anon Key:</label>
-            <input type="password" id="sb-key-input" placeholder="eyJh..." autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-
-            <label style="font-weight: bold;">Gemini API Key:</label>
-            <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" style="width: 100%; margin: 5px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            
-            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">💾 Save Configuration</button>
-        </section>
-
     </main>
 
     <nav class="bottom-nav">
@@ -148,9 +145,6 @@
         </button>
         <button class="nav-item" data-target="screen-manage">
             <span class="icon">📦</span><span class="label">Manage</span>
-        </button>
-        <button class="nav-item" data-target="screen-settings">
-            <span class="icon">⚙️</span><span class="label">Settings</span>
         </button>
     </nav>
 
