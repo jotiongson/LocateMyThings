@@ -22,32 +22,28 @@ window.mySupabaseDb.auth.onAuthStateChange((event, session) => {
 });
 
 // Auth Functions
-window.handleLogin = async () => {
+window.sendMagicLink = async () => {
     const email = document.getElementById('auth-email').value.trim();
-    const password = document.getElementById('auth-password').value.trim();
     const errorDiv = document.getElementById('auth-error');
-    
-    if(!email || !password) return errorDiv.innerText = "Please enter both email and password.";
-    
-    errorDiv.innerText = "Logging in...";
-    const { error } = await window.mySupabaseDb.auth.signInWithPassword({ email, password });
-    if (error) errorDiv.innerText = error.message;
-    else errorDiv.innerText = "";
-};
+    const btn = document.getElementById('main-auth-btn');
 
-window.handleSignup = async () => {
-    const email = document.getElementById('auth-email').value.trim();
-    const password = document.getElementById('auth-password').value.trim();
-    const errorDiv = document.getElementById('auth-error');
+    if (!email.includes('@')) return errorDiv.innerText = "Please enter a valid email.";
     
-    if(!email || !password) return errorDiv.innerText = "Please enter both email and password.";
-    
-    errorDiv.innerText = "Creating account...";
-    const { error } = await window.mySupabaseDb.auth.signUp({ email, password });
-    if (error) errorDiv.innerText = error.message;
-    else {
-        errorDiv.style.color = "green";
-        errorDiv.innerText = "Success! You are now logged in.";
+    btn.innerText = "Sending link...";
+    btn.disabled = true;
+
+    const { error } = await window.mySupabaseDb.auth.signInWithOtp({
+        email: email,
+        options: { emailRedirectTo: window.location.origin }
+    });
+
+    if (error) {
+        errorDiv.innerText = error.message;
+        btn.innerText = "Send Magic Link";
+        btn.disabled = false;
+    } else {
+        errorDiv.style.color = "#20c997";
+        errorDiv.innerText = "Check your email for the sign-in link!";
     }
 };
 
