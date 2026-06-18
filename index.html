@@ -62,34 +62,52 @@
         </section>
 
         <section id="screen-manage" class="view-panel hidden">
-            <h2>Inventory Registry</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Inventory Registry</h2>
+                <span id="inventory-count" style="font-weight: bold; color: #007bff; font-size: 1.1rem;">0 Items</span>
+            </div>
             
             <div style="margin-bottom: 10px;">
-                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." onkeyup="renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
             </div>
-        
-            <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                <select id="inventory-filter" onchange="renderInventoryTable()" style="flex-grow: 1; padding: 8px;">
+
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 8px;">
                     <option value="All">All Locations</option>
                 </select>
+                <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                    🗑️ Delete Selected
+                </button>
             </div>
-        
+
             <div class="table-wrapper">
-                <table id="items-table" style="width: 100%;">
+                <table id="items-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-cb" onchange="toggleSelectAll()"></th>
+                            <th>Photo</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
                     <tbody id="items-table-body"></tbody>
                 </table>
             </div>
-        
+
             <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box;">
-                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto;">
+                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto; margin-top: 10vh;">
                     <img id="modal-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
                     <h3 id="modal-title" style="margin: 15px 0;"></h3>
                     <p id="modal-desc" style="color: #666;"></p>
-                    <label>New Location:</label>
-                    <input type="text" id="modal-location" style="width: 100%; margin: 10px 0; padding: 8px;">
+                    
+                    <label style="font-weight: bold; color: #333;">Location:</label>
+                    <input type="text" id="modal-location" list="modal-location-options" placeholder="Select or type new location..." style="width: 100%; margin: 10px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                    <datalist id="modal-location-options"></datalist>
+
                     <div style="display: flex; gap: 10px;">
-                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:10px;">💾 Save</button>
-                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:10px;">❌ Close</button>
+                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:10px; border-radius: 4px; font-weight: bold;">💾 Save</button>
+                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:10px; border-radius: 4px; font-weight: bold;">❌ Close</button>
                     </div>
                 </div>
             </div>
