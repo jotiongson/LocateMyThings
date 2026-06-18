@@ -15,8 +15,8 @@ let isSignUp = false;
 window.toggleAuthMode = () => {
     isSignUp = !isSignUp;
     document.getElementById('auth-title').innerText = isSignUp ? "Create your account" : "Welcome back";
-    document.getElementById('auth-subtitle').innerText = isSignUp ? "Start cataloging your collection." : "Enter your credentials to access your vault.";
-    document.getElementById('auth-btn').innerText = isSignUp ? "Create Vault" : "Unlock Vault";
+    document.getElementById('auth-subtitle').innerText = isSignUp ? "Start organizing your things." : "Enter your credentials to access your items.";
+    document.getElementById('auth-btn').innerText = isSignUp ? "Create Account" : "Secure Login";
     document.getElementById('auth-toggle').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Here";
 };
 
