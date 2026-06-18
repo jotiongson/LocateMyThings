@@ -38,6 +38,14 @@ async function scanContainerWithAI(base64Image) {
 
 // --- 3. UI INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+
+    // VISUAL PROOF IS BACK!
+    const mainTitle = document.querySelector('h2');
+    if (mainTitle && SUPABASE_URL && GEMINI_API_KEY) {
+        mainTitle.innerText = "System Online!";
+        mainTitle.style.color = "#007bff"; 
+    }
+
     updateHomeDropdown();
     renderLocationsTab();
 
@@ -56,12 +64,23 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
-    // B. NAVIGATION
-    document.querySelectorAll('.nav-item').forEach(btn => {
+    // B. NAVIGATION WITH ACTIVE HIGHLIGHTS
+    const navItems = document.querySelectorAll('.nav-item');
+    const viewPanels = document.querySelectorAll('.view-panel');
+
+    navItems.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const target = btn.getAttribute('data-target');
-            document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+            const currentButton = e.currentTarget;
+            const target = currentButton.getAttribute('data-target');
+            
+            // Move the grey highlight box
+            navItems.forEach(nav => nav.classList.remove('active'));
+            currentButton.classList.add('active');
+
+            // Switch the screen
+            viewPanels.forEach(p => p.classList.add('hidden'));
             document.getElementById(target).classList.remove('hidden');
+            
             if (target === 'screen-manage') loadInventory();
         });
     });
@@ -160,7 +179,6 @@ function openModal(item) {
     document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
 
-    // Build the dropdown options dynamically from your saved zones
     const datalist = document.getElementById('modal-location-options');
     if (datalist) {
         datalist.innerHTML = getSavedLocations().map(loc => `<option value="${loc}">`).join('');
@@ -173,56 +191,56 @@ window.saveModalChanges = async () => {
     const locInput = document.getElementById('modal-location').value.trim();
     if (!locInput) return alert("Location cannot be empty.");
 
-    // SAFETY NET: If the user typed a completely new location, save it to their zones!
     let savedLocs = getSavedLocations();
     if (!savedLocs.includes(locInput)) {
         savedLocs.push(locInput);
         localStorage.setItem('locate_custom_zones', JSON.stringify(savedLocs));
-        
-        // Update all other menus in the background so everything stays in sync
         renderLocationsTab();
         updateHomeDropdown();
         populateFilterDropdown(); 
     }
 
-    // Push the update to the Supabase database
-    const { error } = await mySupabaseDb
-        .from('items')
-        .update({ location: locInput })
-        .eq('id', window.activeItemId);
-
-    if (error) {
-        alert("Error updating database: " + error.message);
-    } else {
+    const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
+    if (error) alert("Error: " + error.message); else {
         document.getElementById('item-modal').classList.add('hidden');
-        loadInventory(); // Instantly refreshes the list so you see the change
+        loadInventory();
     }
 };
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
 
-// --- 5. LOCATIONS LOGIC ---
+// --- 5. LOCATIONS LOGIC (CRASH PROOFED) ---
 function getSavedLocations() {
-    return JSON.parse(localStorage.getItem('locate_custom_zones')) || ["Garage Table Drawer A", "Master Bedroom Closet Bin B", "Kitchen Pantry Top Shelf"];
+    try {
+        const stored = localStorage.getItem('locate_custom_zones');
+        if (stored) return JSON.parse(stored);
+    } catch (e) { console.warn("Could not parse locations."); }
+    return ["Garage Table Drawer A", "Master Bedroom Closet Bin B", "Kitchen Pantry Top Shelf"];
 }
 
 function renderLocationsTab() {
     const list = document.getElementById('locations-list');
+    if (!list) return;
     list.innerHTML = getSavedLocations().map(loc => `<li style="background:#f8f9fa; margin-bottom:10px; padding:15px; border:1px solid #ddd; display:flex; justify-content:space-between;">${loc} <button onclick="removeLocation('${loc}')">🗑️</button></li>`).join('');
 }
 
 function updateHomeDropdown() {
     const select = document.getElementById('location-select');
+    if (!select) return;
     select.innerHTML = getSavedLocations().map(l => `<option value="${l}">${l}</option>`).join('');
 }
 
 window.addNewLocation = () => {
-    const val = document.getElementById('new-location-input').value;
+    const val = document.getElementById('new-location-input').value.trim();
+    if(!val) return;
     let locs = getSavedLocations();
-    locs.push(val);
-    localStorage.setItem('locate_custom_zones', JSON.stringify(locs));
-    renderLocationsTab();
-    updateHomeDropdown();
+    if(!locs.includes(val)) {
+        locs.push(val);
+        localStorage.setItem('locate_custom_zones', JSON.stringify(locs));
+        renderLocationsTab();
+        updateHomeDropdown();
+        document.getElementById('new-location-input').value = '';
+    }
 };
 
 window.removeLocation = (l) => {
