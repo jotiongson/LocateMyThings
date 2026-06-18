@@ -39,7 +39,6 @@ async function scanContainerWithAI(base64Image) {
 // --- 3. UI INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // VISUAL PROOF IS BACK!
     const mainTitle = document.querySelector('h2');
     if (mainTitle && SUPABASE_URL && GEMINI_API_KEY) {
         mainTitle.innerText = "System Online!";
@@ -73,11 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentButton = e.currentTarget;
             const target = currentButton.getAttribute('data-target');
             
-            // Move the grey highlight box
             navItems.forEach(nav => nav.classList.remove('active'));
             currentButton.classList.add('active');
 
-            // Switch the screen
             viewPanels.forEach(p => p.classList.add('hidden'));
             document.getElementById(target).classList.remove('hidden');
             
@@ -160,18 +157,93 @@ function populateFilterDropdown() {
 window.renderInventoryTable = function() {
     const tbody = document.getElementById('items-table-body');
     const loc = document.getElementById('inventory-filter').value;
-    const search = document.getElementById('inventory-search').value.toLowerCase();
+    const search = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
+    
     tbody.innerHTML = '';
-    currentInventory.filter(item => (loc === "All" || item.location === loc) && (item.title.toLowerCase().includes(search) || item.description.toLowerCase().includes(search)))
-    .forEach(item => {
+    
+    // 1. Filter the data
+    const filteredData = currentInventory.filter(item => 
+        (loc === "All" || item.location === loc) && 
+        (item.title.toLowerCase().includes(search) || item.description.toLowerCase().includes(search))
+    );
+
+    // 2. Update the Item Count in the Header
+    const countSpan = document.getElementById('inventory-count');
+    if (countSpan) countSpan.innerText = `${filteredData.length} Item${filteredData.length !== 1 ? 's' : ''}`;
+
+    // 3. Reset the Checkboxes & Hide Delete Button
+    document.getElementById('btn-bulk-delete').classList.add('hidden');
+    const selectAllCb = document.getElementById('select-all-cb');
+    if (selectAllCb) selectAllCb.checked = false;
+
+    // 4. Paint the rows
+    filteredData.forEach(item => {
         const tr = document.createElement('tr');
         tr.style.cursor = "pointer";
-        tr.onclick = () => openModal(item);
-        tr.innerHTML = `<td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover;"></td><td>${item.title}</td><td>${item.description.substring(0, 20)}...</td><td>${item.location}</td>`;
+        
+        // Block modal from opening if the user clicks the checkbox
+        tr.onclick = (e) => {
+            if (e.target.tagName.toLowerCase() === 'input') return;
+            openModal(item);
+        };
+
+        tr.innerHTML = `
+            <td style="text-align: center;">
+                <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
+            </td>
+            <td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;"></td>
+            <td style="font-weight: bold;">${item.title}</td>
+            <td style="color: #666;">${item.description.substring(0, 25)}...</td>
+            <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location}</span></td>
+        `;
         tbody.appendChild(tr);
     });
 }
 
+// BULK DELETE UI LOGIC
+window.toggleSelectAll = function() {
+    const masterCb = document.getElementById('select-all-cb');
+    const rowCbs = document.querySelectorAll('.row-cb');
+    rowCbs.forEach(cb => cb.checked = masterCb.checked);
+    checkBulkDeleteStatus();
+}
+
+window.checkBulkDeleteStatus = function() {
+    const anyChecked = document.querySelector('.row-cb:checked') !== null;
+    const btn = document.getElementById('btn-bulk-delete');
+    if (anyChecked) {
+        btn.classList.remove('hidden');
+    } else {
+        btn.classList.add('hidden');
+    }
+}
+
+// ACTUAL BULK DELETE DATABASE CALL
+window.bulkDeleteItems = async function() {
+    const checkedBoxes = document.querySelectorAll('.row-cb:checked');
+    if (checkedBoxes.length === 0) return;
+
+    if (!confirm(`Are you sure you want to permanently delete ${checkedBoxes.length} item(s)?`)) return;
+
+    // Grab all the IDs we want to delete
+    const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+    try {
+        const { error } = await mySupabaseDb
+            .from('items')
+            .delete()
+            .in('id', idsToDelete);
+
+        if (error) throw error;
+        
+        alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
+        loadInventory(); // Refresh the list!
+    } catch (err) {
+        alert("Error deleting items: " + err.message);
+    }
+}
+
+// MODAL LOGIC
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title').innerText = item.title;
