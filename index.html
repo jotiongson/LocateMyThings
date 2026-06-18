@@ -4,148 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LocateMyThings</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Link to your existing CSS file -->
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body style="font-family: sans-serif; background-color: #f9fafb; margin: 0; padding: 0;">
 
-    <div id="auth-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
-        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center;">
-            <h1 id="auth-title" style="color: #20c997; margin-bottom: 5px;">Sign In</h1>
-            <p style="color: #666; font-size: 0.9rem; margin-bottom: 25px;">Enter your email to receive a magic sign-in link.</p>
-            
-            <input type="email" id="auth-email" placeholder="you@email.com" autocomplete="off" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
-            
-            <button id="main-auth-btn" onclick="sendMagicLink()" style="width: 100%; padding: 12px; background: #20c997; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer;">Send Magic Link</button>
-            
-            <div id="auth-error" style="color: #dc3545; margin-top: 15px; font-weight: bold; font-size: 0.85rem; min-height: 20px;"></div>
+    <!-- ========================================== -->
+    <!-- 1. AUTHENTICATION SCREEN (LOGIN / REGISTER)-->
+    <!-- ========================================== -->
+    <!-- This screen stays visible until the user logs in -->
+    <div id="auth-screen" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
+        <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px;">
+
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 id="auth-title" style="font-size: 1.5rem; font-weight: 900; color: #111827; margin: 0 0 0.5rem 0;">Welcome back</h2>
+                <p id="auth-subtitle" style="color: #6b7280; font-size: 0.875rem; margin: 0;">Enter your credentials to access your vault.</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Email Address</label>
+                    <input type="email" id="auth-email" placeholder="collector@example.com" required style="padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; width: 100%; box-sizing: border-box; outline: none;">
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Password</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" required style="padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.5rem; width: 100%; box-sizing: border-box; outline: none;">
+                </div>
+            </div>
+
+            <!-- The button that triggers the JavaScript login function -->
+            <button id="auth-btn" onclick="handleAuth()" style="width: 100%; padding: 1rem; background-color: #111827; color: white; font-weight: 900; border-radius: 0.5rem; border: none; cursor: pointer;">
+                Unlock Vault
+            </button>
+
+            <!-- The toggle link to switch between Login and Register -->
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <button onclick="toggleAuthMode()" id="auth-toggle" style="background: none; border: none; color: #059669; font-weight: bold; cursor: pointer; font-size: 0.875rem;">
+                    Don't have an account? Register Here
+                </button>
+            </div>
         </div>
     </div>
 
-    <main id="app-content">
+    <!-- ========================================== -->
+    <!-- 2. MAIN APP SCREEN (HIDDEN UNTIL LOGGED IN)-->
+    <!-- ========================================== -->
+    <!-- This matches your LocateMyThings UI exactly -->
+    <div id="app-screen" class="hidden" style="display: none; max-width: 1200px; margin: 0 auto; padding: 2rem;">
         
-        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #fff; border-bottom: 1px solid #eee;">
-            <h3 style="margin: 0; color: #333;">LocateMyThings</h3>
-            <button onclick="handleLogout()" style="background: transparent; border: none; color: #dc3545; font-weight: bold; cursor: pointer;">Log Out</button>
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 900;">LocateMyThings</h1>
+            <button onclick="logout()" style="color: #dc2626; font-weight: bold; background: none; border: none; cursor: pointer;">Log Out</button>
         </header>
 
-        <section id="screen-home" class="view-panel">
-            <h2 style="margin-bottom: 20px;">Add to Collection</h2>
-            
-            <div style="border: 2px solid #20c997; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="color: #0f5132; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;">📍 ACTIVE LOCATION</span>
-                    <span style="background-color: #d1e7dd; color: #0f5132; font-size: 0.7rem; font-weight: bold; padding: 3px 8px; border-radius: 12px;">REQUIRED</span>
+        <main>
+            <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1.5rem;">Add to Collection</h2>
+
+            <div style="background: white; border: 2px solid #34d399; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                    <span style="font-weight: 900; color: #065f46; font-size: 0.875rem;">📍 ACTIVE LOCATION</span>
+                    <span style="background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold;">REQUIRED</span>
                 </div>
                 
-                <select id="location-select" style="width: 100%; border: none; font-size: 1.1rem; color: #20c997; outline: none; background: transparent; padding: 5px 0;">
-                    <option value="">-- Select a Location --</option>
-                    <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
+                <select id="location-select" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.25rem; margin-bottom: 1rem;">
+                    <option value="">+ Create New Location...</option>
                 </select>
-
-                <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-top: 10px;">
+                
+                <input type="text" id="item-title" placeholder="A" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.25rem; box-sizing: border-box;">
             </div>
 
-            <div class="form-group">
-                <label id="camera-btn-label" for="image-input" style="text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
-                    🔒 Select Location to Unlock Scanner
-                </label>
-                <input type="file" id="image-input" accept="image/*" style="display:none;" disabled>
-            </div>
+            <button id="scan-btn" onclick="triggerScan()" style="width: 100%; padding: 1rem; background-color: #34d399; color: white; font-weight: bold; font-size: 1.1rem; border: none; border-radius: 0.5rem; cursor: pointer; margin-bottom: 1.5rem;">
+                📸 Take Photo or Upload Image
+            </button>
 
-            <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
+            <!-- Hidden file input triggered by the button above -->
+            <input type="file" id="image-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+
+            <div id="ai-loading" style="display: none; text-align: center; color: #2563eb; font-weight: bold; margin-bottom: 1.5rem;">
                 ⏳ Secure AI is analyzing the image...
             </div>
 
-            <div id="verification-area" class="hidden">
-                <h3 style="margin-top: 20px;">Verify Detected Items</h3>
-                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">Uncheck items to ignore them. Edit titles and descriptions directly.</p>
+            <div id="verify-section" style="display: none; background: #e5e7eb; padding: 1.5rem; border-radius: 0.5rem;">
+                <h3 style="margin-top: 0;">Verify Detected Items</h3>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;">Uncheck items to ignore them. Edit titles and descriptions directly.</p>
                 
-                <div class="table-wrapper">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr>
-                                <th style="width: 40px; text-align: center;">Keep</th>
-                                <th style="width: 60px; text-align: center;">Image</th>
-                                <th>Item Title</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody id="verification-table-body"></tbody>
-                    </table>
+                <div id="detected-items-list" style="margin-bottom: 1.5rem;">
+                    <!-- AI Results will populate here -->
                 </div>
 
-                <button id="btn-save-bulk" style="background: #20c997; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
+                <button id="save-btn" onclick="saveItems()" style="width: 100%; padding: 1rem; background-color: #059669; color: white; font-weight: bold; border: none; border-radius: 0.5rem; cursor: pointer;">
                     💾 Save Confirmed Items to Database
                 </button>
             </div>
-        </section>
+        </main>
+    </div>
 
-        <section id="screen-manage" class="view-panel hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Inventory Registry</h2>
-                <span id="inventory-count" style="font-weight: bold; color: #007bff; font-size: 1.1rem;">0 Items</span>
-            </div>
-            
-            <div style="margin-bottom: 10px;">
-                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." autocomplete="off" onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            </div>
-
-            <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                    <option value="All">All Locations</option>
-                </select>
-                <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
-                    🗑️ Delete Selected
-                </button>
-            </div>
-
-            <div class="table-wrapper">
-                <table id="items-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-cb" onchange="toggleSelectAll()"></th>
-                            <th>Photo</th>
-                            <th>Title</th>
-                            <th>Description</th>
-                            <th>Location</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-table-body"></tbody>
-                </table>
-            </div>
-
-            <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
-                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 5vh auto;">
-                    <img id="modal-img" src="" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
-                    <h3 id="modal-title" style="margin: 15px 0 5px 0;"></h3>
-                    <p id="modal-desc" style="color: #666; margin-bottom: 15px; line-height: 1.4;"></p>
-                    
-                    <label style="font-weight: bold; color: #333;">Change Location:</label>
-                    <select id="modal-location-select" style="width: 100%; margin: 5px 0 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
-                        <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
-                    </select>
-                    <input type="text" id="modal-location-input" placeholder="Type new location here..." autocomplete="off" class="hidden" style="width: 100%; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
-
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">💾 Save</button>
-                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">❌ Close</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-target="screen-home">
-            <span class="icon">🏠</span><span class="label">Home</span>
-        </button>
-        <button class="nav-item" data-target="screen-manage">
-            <span class="icon">📦</span><span class="label">Manage</span>
-        </button>
-    </nav>
-
+    <!-- Your logic script -->
     <script src="main.js"></script>
 </body>
 </html>
