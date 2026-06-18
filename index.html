@@ -20,7 +20,8 @@
                 </div>
                 
                 <select id="location-select" style="width: 100%; border: none; font-size: 1.1rem; color: #20c997; outline: none; background: transparent; padding: 5px 0;">
-                    <option value="">-- Loading Locations... --</option>
+                    <option value="">-- Select a Location --</option>
+                    <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
                 </select>
 
                 <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-top: 10px;">
@@ -53,8 +54,7 @@
                                 <th>Description</th>
                             </tr>
                         </thead>
-                        <tbody id="verification-table-body">
-                            </tbody>
+                        <tbody id="verification-table-body"></tbody>
                     </table>
                 </div>
 
@@ -109,7 +109,9 @@
                     <p id="modal-desc" style="color: #666; margin-bottom: 15px; line-height: 1.4;"></p>
                     
                     <label style="font-weight: bold; color: #333;">Change Location:</label>
-                    <select id="modal-location-select" style="width: 100%; margin: 5px 0 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;"></select>
+                    <select id="modal-location-select" style="width: 100%; margin: 5px 0 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                        <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
+                    </select>
                     <input type="text" id="modal-location-input" placeholder="Type new location here..." autocomplete="off" class="hidden" style="width: 100%; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
 
                     <div style="display: flex; gap: 10px;">
