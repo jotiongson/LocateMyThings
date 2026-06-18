@@ -11,9 +11,9 @@ try {
     alert("Warning: Your browser is blocking local storage. Settings won't save!");
 }
 
-let supabase = null;
+let mySupabaseDb = null; 
 if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
 // --- 2. AI SCANNER FUNCTION ---
