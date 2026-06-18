@@ -11,14 +11,16 @@
 
     <div id="auth-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
         <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center;">
-            <h1 style="color: #20c997; margin-bottom: 5px;">LocateMyThings</h1>
-            <p style="color: #666; margin-bottom: 25px; font-size: 0.9rem;">Organize and find your stuff instantly.</p>
+            <h1 id="auth-title" style="color: #20c997; margin-bottom: 25px;">Log In</h1>
             
-            <input type="email" id="auth-email" placeholder="Email Address" autocomplete="off" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
+            <input type="email" id="auth-email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
             <input type="password" id="auth-password" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
             
-            <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-bottom: 10px;">Log In</button>
-            <button onclick="handleSignup()" style="width: 100%; padding: 12px; background: white; color: #007bff; border: 2px solid #007bff; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer;">Create Account</button>
+            <button id="main-auth-btn" onclick="executeAuth()" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-bottom: 20px;">Log In</button>
+            
+            <p id="toggle-text" style="font-size: 0.9rem; color: #666;">
+                Need an account? <span onclick="toggleAuthMode()" style="color: #007bff; font-weight: bold; cursor: pointer; text-decoration: underline;">Sign Up</span>
+            </p>
             
             <div id="auth-error" style="color: #dc3545; margin-top: 15px; font-size: 0.85rem; font-weight: bold; min-height: 20px;"></div>
         </div>
