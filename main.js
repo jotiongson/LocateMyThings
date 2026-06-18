@@ -1,34 +1,74 @@
-// --- 1. ERROR PROOF INITIALIZATION ---
-let SUPABASE_URL = "";
-let SUPABASE_ANON_KEY = "";
-let GEMINI_API_KEY = "";
+// --- 1. SUPABASE INITIALIZATION & AUTH ---
+// IMPORTANT: Paste your Supabase URL and Anon Key here. They are safe to be public!
+const SUPABASE_URL = "https://etmogzjhmvuwpvbuwryh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bW9nempobXZ1d3B2YnV3cnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDU2OTUsImV4cCI6MjA5NzI4MTY5NX0.uu8C3xdciivAPYX5EYspOskyDIka7cWNB6jsEIrwWrw";
 
-try {
-    SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
-    SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
-    GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
-} catch (error) { console.warn("Local storage unavailable."); }
-
-let mySupabaseDb = null; 
-if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-    mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
+window.mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.globalLocations = []; 
+
+// Listen for Login/Logout events to show or hide the app
+window.mySupabaseDb.auth.onAuthStateChange((event, session) => {
+    const authScreen = document.getElementById('auth-screen');
+    if (session) {
+        authScreen.classList.add('hidden');
+        refreshDynamicLocations();
+        // If they are on the manage tab when logging in, load inventory
+        if(!document.getElementById('screen-manage').classList.contains('hidden')) {
+            loadInventory();
+        }
+    } else {
+        authScreen.classList.remove('hidden');
+    }
+});
+
+// Auth Functions
+window.handleLogin = async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const errorDiv = document.getElementById('auth-error');
+    
+    if(!email || !password) return errorDiv.innerText = "Please enter both email and password.";
+    
+    errorDiv.innerText = "Logging in...";
+    const { error } = await window.mySupabaseDb.auth.signInWithPassword({ email, password });
+    if (error) errorDiv.innerText = error.message;
+    else errorDiv.innerText = "";
+};
+
+window.handleSignup = async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const errorDiv = document.getElementById('auth-error');
+    
+    if(!email || !password) return errorDiv.innerText = "Please enter both email and password.";
+    
+    errorDiv.innerText = "Creating account...";
+    const { error } = await window.mySupabaseDb.auth.signUp({ email, password });
+    if (error) errorDiv.innerText = error.message;
+    else {
+        errorDiv.style.color = "green";
+        errorDiv.innerText = "Success! You are now logged in.";
+    }
+};
+
+window.handleLogout = async () => {
+    await window.mySupabaseDb.auth.signOut();
+    // Clear out memory so the next user doesn't see old dropdowns
+    document.getElementById('verification-table-body').innerHTML = '';
+    document.getElementById('items-table-body').innerHTML = '';
+};
+
 
 // --- DYNAMIC LOCATION FETCHER ---
 async function refreshDynamicLocations() {
-    if (!mySupabaseDb) return;
-    
     try {
-        const { data, error } = await mySupabaseDb.from('items').select('location');
+        const { data, error } = await window.mySupabaseDb.from('items').select('location');
         if (error || !data) return;
 
         window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
         
         const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
         
-        // Base options so you are NEVER locked out
         const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
         const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
         const baseFilter = `<option value="All">All Locations</option>`;
@@ -41,41 +81,43 @@ async function refreshDynamicLocations() {
 
         const filterSelect = document.getElementById('inventory-filter');
         if (filterSelect) filterSelect.innerHTML = baseFilter + optionsHtml;
-    } catch (e) {
-        console.error("Failed to fetch locations", e);
-    }
+    } catch (e) { console.error("Failed to fetch locations", e); }
 }
 
-// --- 2. AI SCANNER FUNCTION ---
+
+// --- 2. SECURE AI SCANNER FUNCTION (EDGE FUNCTION CALL) ---
 async function scanContainerWithAI(base64Image) {
-    if (!GEMINI_API_KEY) {
-        alert("Please save your Gemini API Key in the Settings tab first!");
-        return [];
-    }
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-    const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
-
-    const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] };
-
     try {
-        const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        const result = await response.json();
-        if (result.error) { alert("AI Error: " + result.error.message); return []; }
+        // Send the image to your secure Edge Function instead of Google directly!
+        const { data, error } = await window.mySupabaseDb.functions.invoke('scan-image', {
+            body: { base64Image: base64Image }
+        });
 
-        let rawText = result.candidates[0].content.parts[0].text.trim();
+        if (error) {
+            alert("Edge Function Error: " + error.message);
+            return [];
+        }
+
+        if (data.error) {
+            alert("AI Error: " + data.error.message);
+            return [];
+        }
+
+        let rawText = data.candidates[0].content.parts[0].text.trim();
         if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
         return JSON.parse(rawText); 
-    } catch (error) { alert("Failed to parse AI response."); return []; }
+        
+    } catch (error) { 
+        alert("Failed to communicate with secure server. Ensure Edge Function is deployed."); 
+        return []; 
+    }
 }
+
 
 // --- 3. UI INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    if (SUPABASE_URL && GEMINI_API_KEY) {
-        refreshDynamicLocations();
-    }
-
-    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC (HYBRID SYSTEM)
+    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
     const camBtnLabel = document.getElementById('camera-btn-label');
@@ -113,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
             checkHomeUnlockStatus();
         });
     }
-    
     if (newLocInput) newLocInput.addEventListener('input', checkHomeUnlockStatus);
 
     // Modal UI Toggle Logic
@@ -131,28 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // B. SETTINGS
-    const sbUrlInput = document.getElementById('sb-url-input');
-    const sbKeyInput = document.getElementById('sb-key-input');
-    const apiKeyInput = document.getElementById('api-key-input');
-    if(sbUrlInput) sbUrlInput.value = SUPABASE_URL;
-    if(sbKeyInput) sbKeyInput.value = SUPABASE_ANON_KEY;
-    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
-    
-    document.getElementById('btn-save-settings').addEventListener('click', () => {
-        // Automatically strip whitespace and force URL protocol to lowercase
-        let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
-        let cleanKey = sbKeyInput.value.trim();
-        let cleanGemini = apiKeyInput.value.trim();
-    
-        localStorage.setItem('locate_sb_url', cleanUrl);
-        localStorage.setItem('locate_sb_key', cleanKey);
-        localStorage.setItem('locate_gemini_key', cleanGemini);
-        
-        location.reload();
-    });
-
-    // C. NAVIGATION
+    // B. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -172,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // D. CAMERA PROCESSING
+    // C. CAMERA PROCESSING
     if (imgInput) {
         imgInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -208,10 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // E. SAVE BULK
+    // D. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
-        if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
-
         const selectElement = document.getElementById('location-select');
         let targetLocation = selectElement.value;
         
@@ -219,10 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetLocation = document.getElementById('new-location-input-home').value.trim();
         }
 
-        if (!targetLocation) {
-            alert("Please enter or select a location before saving.");
-            return;
-        }
+        if (!targetLocation) return alert("Please enter or select a location before saving.");
 
         const rows = document.querySelectorAll('#verification-table-body tr');
         let toInsert = [];
@@ -237,14 +252,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (toInsert.length === 0) {
-            alert("No items selected to save.");
-            return;
-        }
+        if (toInsert.length === 0) return alert("No items selected to save.");
 
         document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
 
-        const { error } = await mySupabaseDb.from('items').insert(toInsert);
+        const { error } = await window.mySupabaseDb.from('items').insert(toInsert);
         
         if (error) {
             alert("Database Error: " + error.message);
@@ -253,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('verification-area').classList.add('hidden');
             document.getElementById('verification-table-body').innerHTML = ""; 
             
-            // Reset UI
             selectElement.value = "";
             document.getElementById('new-location-input-home').classList.add('hidden');
             document.getElementById('new-location-input-home').value = "";
@@ -270,8 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentInventory = [];
 
 async function loadInventory() {
-    if (!mySupabaseDb) return;
-    const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
+    const { data } = await window.mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
     refreshDynamicLocations(); 
     window.renderInventoryTable();
@@ -310,9 +320,7 @@ window.renderInventoryTable = function() {
         };
 
         tr.innerHTML = `
-            <td style="text-align: center;">
-                <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
-            </td>
+            <td style="text-align: center;"><input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()"></td>
             <td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;"></td>
             <td style="font-weight: bold;">${item.title}</td>
             <td style="color: #666;">${item.description.substring(0, 25)}...</td>
@@ -345,14 +353,11 @@ window.bulkDeleteItems = async function() {
     const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
     try {
-        const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
+        const { error } = await window.mySupabaseDb.from('items').delete().in('id', idsToDelete);
         if (error) throw error;
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
-        
         loadInventory(); 
-    } catch (err) {
-        alert("Error deleting items: " + err.message);
-    }
+    } catch (err) { alert("Error deleting items: " + err.message); }
 }
 
 // MODAL
@@ -375,8 +380,6 @@ function openModal(item) {
 }
 
 window.saveModalChanges = async () => {
-    if (!mySupabaseDb) return;
-    
     const selectElement = document.getElementById('modal-location-select');
     let locInput = selectElement.value;
     
@@ -386,7 +389,7 @@ window.saveModalChanges = async () => {
 
     if (!locInput) return alert("Location cannot be empty.");
 
-    const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
+    const { error } = await window.mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
     
     if (error) alert("Error: " + error.message); 
     else {
