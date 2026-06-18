@@ -9,16 +9,16 @@
 </head>
 <body>
 
-    <div id="auth-screen" style="...">
-        <div style="...">
-            <h1 id="auth-title" style="...">Sign In / Sign Up</h1>
-            <p style="color: #666; font-size: 0.9rem;">Enter your email to receive a magic sign-in link.</p>
+    <div id="auth-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8f9fa; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center;">
+            <h1 id="auth-title" style="color: #20c997; margin-bottom: 5px;">Sign In</h1>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 25px;">Enter your email to receive a magic sign-in link.</p>
             
-            <input type="email" id="auth-email" placeholder="you@example.com" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+            <input type="email" id="auth-email" placeholder="you@email.com" autocomplete="off" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem;">
             
-            <button id="main-auth-btn" onclick="sendMagicLink()" style="width: 100%; padding: 12px; background: #20c997; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Send Magic Link</button>
+            <button id="main-auth-btn" onclick="sendMagicLink()" style="width: 100%; padding: 12px; background: #20c997; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer;">Send Magic Link</button>
             
-            <div id="auth-error" style="color: #dc3545; margin-top: 15px; font-weight: bold;"></div>
+            <div id="auth-error" style="color: #dc3545; margin-top: 15px; font-weight: bold; font-size: 0.85rem; min-height: 20px;"></div>
         </div>
     </div>
 
