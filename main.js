@@ -20,30 +20,29 @@ window.globalLocations = [];
 async function refreshDynamicLocations() {
     if (!mySupabaseDb) return;
     
-    const { data, error } = await mySupabaseDb.from('items').select('location');
-    if (error || !data) return;
+    try {
+        const { data, error } = await mySupabaseDb.from('items').select('location');
+        if (error || !data) return;
 
-    window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
-    
-    const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
-    const newLocationOption = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
+        
+        const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
+        
+        // Base options so you are NEVER locked out
+        const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        const baseFilter = `<option value="All">All Locations</option>`;
 
-    // 1. Update Home Screen Select
-    const homeSelect = document.getElementById('location-select');
-    if (homeSelect) {
-        homeSelect.innerHTML = `<option value="">-- Select a Location --</option>` + newLocationOption + optionsHtml;
-    }
+        const homeSelect = document.getElementById('location-select');
+        if (homeSelect) homeSelect.innerHTML = baseHome + optionsHtml;
 
-    // 2. Update Modal Select
-    const modalSelect = document.getElementById('modal-location-select');
-    if (modalSelect) {
-        modalSelect.innerHTML = newLocationOption + optionsHtml;
-    }
+        const modalSelect = document.getElementById('modal-location-select');
+        if (modalSelect) modalSelect.innerHTML = baseModal + optionsHtml;
 
-    // 3. Update Manage Items Filter
-    const filterSelect = document.getElementById('inventory-filter');
-    if (filterSelect) {
-        filterSelect.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
+        const filterSelect = document.getElementById('inventory-filter');
+        if (filterSelect) filterSelect.innerHTML = baseFilter + optionsHtml;
+    } catch (e) {
+        console.error("Failed to fetch locations", e);
     }
 }
 
@@ -109,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 newLocInput.focus();
             } else {
                 newLocInput.classList.add('hidden');
-                newLocInput.value = ""; // Clear it if they changed their mind
+                newLocInput.value = ""; 
             }
             checkHomeUnlockStatus();
         });
@@ -205,6 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // E. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
+        if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+
         const selectElement = document.getElementById('location-select');
         let targetLocation = selectElement.value;
         
@@ -246,9 +247,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('verification-area').classList.add('hidden');
             document.getElementById('verification-table-body').innerHTML = ""; 
             
-            // Reset the home screen inputs
+            // Reset UI
             selectElement.value = "";
             document.getElementById('new-location-input-home').classList.add('hidden');
+            document.getElementById('new-location-input-home').value = "";
             selectElement.dispatchEvent(new Event('change'));
             
             refreshDynamicLocations();
@@ -262,9 +264,10 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentInventory = [];
 
 async function loadInventory() {
+    if (!mySupabaseDb) return;
     const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
-    refreshDynamicLocations(); // Ensure dropdowns are synced
+    refreshDynamicLocations(); 
     window.renderInventoryTable();
 }
 
@@ -353,7 +356,6 @@ function openModal(item) {
     document.getElementById('modal-desc').innerText = item.description;
     window.activeItemId = item.id;
 
-    // Set the dropdown to match the item's location
     const modalSelect = document.getElementById('modal-location-select');
     const modalInput = document.getElementById('modal-location-input');
     
@@ -367,6 +369,8 @@ function openModal(item) {
 }
 
 window.saveModalChanges = async () => {
+    if (!mySupabaseDb) return;
+    
     const selectElement = document.getElementById('modal-location-select');
     let locInput = selectElement.value;
     
