@@ -1,140 +1,475 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocateMyThings</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+// --- 1. ERROR PROOF INITIALIZATION ---
+let SUPABASE_URL = "";
+let SUPABASE_ANON_KEY = "";
+let GEMINI_API_KEY = "";
 
-    <main id="app-content">
+try {
+    SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
+    SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
+    GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
+} catch (error) {
+    console.warn("Local storage unavailable.");
+}
+
+// Renamed to avoid conflicts with the official Supabase CDN
+let mySupabaseDb = null; 
+if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// --- 2. AI SCANNER FUNCTION ---
+async function scanContainerWithAI(base64Image) {
+    if (!GEMINI_API_KEY) {
+        alert("Please save your Gemini API Key in the Settings tab first!");
+        return [];
+    }
+
+    // High-volume model to bypass traffic jams
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    
+    // Strict prompt requiring exact bounding box coordinates
+    const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
+
+    const payload = {
+        contents: [{
+            parts: [
+                { text: prompt },
+                { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+            ]
+        }]
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
         
-        <section id="screen-home" class="view-panel">
-            <h2>Scan a New Container</h2>
-            
-            <div class="form-group">
-                <label for="location-select">Select Target Location:</label>
-                <select id="location-select">
-                    <option value="Garage Table Drawer A">Garage Table Drawer A</option>
-                    <option value="Master Bedroom Closet Bin B">Master Bedroom Closet Bin B</option>
-                    <option value="Kitchen Pantry Top Shelf">Kitchen Pantry Top Shelf</option>
-                </select>
-            </div>
+        const result = await response.json();
+        
+        if (result.error) {
+            alert("AI Error: " + result.error.message);
+            return [];
+        }
 
-            <div class="form-group">
-                <label for="image-input" class="primary-btn" style="text-align:center; display:block; padding: 15px; background: #28a745; color: white; border-radius: 5px; cursor: pointer;">
-                    📸 Take Photo or Upload Image
-                </label>
-                <input type="file" id="image-input" accept="image/*" style="display:none;">
-            </div>
+        let rawText = result.candidates[0].content.parts[0].text.trim();
+        if (rawText.startsWith("```json")) {
+            rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
+        }
+        return JSON.parse(rawText); 
+    } catch (error) {
+        alert("Failed to parse AI response.");
+        return [];
+    }
+}
 
-            <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
-                🤖 Gemini AI is processing the container image...
-            </div>
+// --- 3. MAIN INTERFACE LOGIC ---
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // VISUAL PROOF (Title turns blue if JS loads without crashing)
+    const mainTitle = document.querySelector('h2');
+    if (mainTitle) {
+        mainTitle.innerText = "System Online!";
+        mainTitle.style.color = "#007bff"; 
+    }
 
-            <div id="verification-area" class="hidden">
-                <h3 style="margin-top: 20px;">Verify Detected Items</h3>
-                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">
-                    Uncheck items to ignore them. Click on text to edit names or descriptions.
-                </p>
+    // Pre-populate our custom locations from LocalStorage right away
+    updateHomeDropdown();
+    renderLocationsTab();
+
+    // A. SETTINGS LOGIC
+    const sbUrlInput = document.getElementById('sb-url-input');
+    const sbKeyInput = document.getElementById('sb-key-input');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const saveSettingsBtn = document.getElementById('btn-save-settings');
+    
+    // Pre-fill existing keys
+    if(sbUrlInput) sbUrlInput.value = SUPABASE_URL;
+    if(sbKeyInput) sbKeyInput.value = SUPABASE_ANON_KEY;
+    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
+    
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            try {
+                SUPABASE_URL = sbUrlInput.value.trim();
+                SUPABASE_ANON_KEY = sbKeyInput.value.trim();
+                GEMINI_API_KEY = apiKeyInput.value.trim();
+
+                localStorage.setItem('locate_sb_url', SUPABASE_URL);
+                localStorage.setItem('locate_sb_key', SUPABASE_ANON_KEY);
+                localStorage.setItem('locate_gemini_key', GEMINI_API_KEY);
                 
-                <div class="table-wrapper">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr>
-                                <th style="width: 40px; text-align: center;">Keep</th>
-                                <th style="width: 60px; text-align: center;">Image</th>
-                                <th>Item Title</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody id="verification-table-body">
-                            </tbody>
-                    </table>
-                </div>
+                // Reconnect to Supabase with new keys
+                if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+                    mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                }
 
-                <button id="btn-add-manual" style="background-color: #6c757d; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 10px; width: 100%;">
-                    ➕ Add Item AI Missed
-                </button>
+                alert("All keys saved securely to your device!");
+            } catch (e) {
+                alert("Could not save to device storage.");
+            }
+        });
+    }
 
-                <button id="btn-save-bulk" style="background: #28a745; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
-                    💾 Save Confirmed Items to Database
-                </button>
-            </div>
-        </section>
+    // B. NAVIGATION LOGIC
+    const navItems = document.querySelectorAll('.nav-item');
+    const viewPanels = document.querySelectorAll('.view-panel');
 
-        <section id="screen-manage" class="view-panel hidden">
-            <h2>Inventory Registry</h2>
-            <div class="table-wrapper">
-                <table id="items-table">
-                    <thead>
-                        <tr>
-                            <th>Photo</th>
-                            <th>Title</th>
-                            <th>Description</th>
-                            <th>Location</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-table-body"></tbody>
-                </table>
-            </div>
-        </section>
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const currentButton = e.currentTarget;
+            const targetScreenId = currentButton.getAttribute('data-target');
+            if(!targetScreenId) return;
 
-        <section id="screen-locations" class="view-panel hidden">
-            <h2>Storage Zones</h2>
-            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Manage your physical storage containers. These will appear in your Home tab dropdown.
-            </p>
+            navItems.forEach(nav => nav.classList.remove('active'));
+            currentButton.classList.add('active');
+
+            viewPanels.forEach(panel => panel.classList.add('hidden'));
+            const targetPanel = document.getElementById(targetScreenId);
+            if(targetPanel) targetPanel.classList.remove('hidden');
+
+            // Fetch inventory automatically when moving to the manage screen
+            if (targetScreenId === 'screen-manage') {
+                loadInventory();
+            }
+        });
+    });
+
+    // C. CAMERA & GRID LOGIC
+    const imageInput = document.getElementById('image-input');
+    const loadingStatus = document.getElementById('loading-status');
+    const verificationArea = document.getElementById('verification-area');
+    const verificationTableBody = document.getElementById('verification-table-body');
+    const btnAddManual = document.getElementById('btn-add-manual');
+    const btnSaveBulk = document.getElementById('btn-save-bulk');
+
+    if (imageInput) {
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            loadingStatus.classList.remove('hidden');
+            verificationArea.classList.add('hidden');
+            verificationTableBody.innerHTML = "";
+
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
+                
+                const detectedItems = await scanContainerWithAI(base64Data);
+                
+                loadingStatus.classList.add('hidden');
+                
+                if (detectedItems && detectedItems.length > 0) {
+                    detectedItems.forEach(item => {
+                        let thumbHtml = ""; 
+                        let base64StringForDb = ""; 
+                        
+                        if (item.box_2d && item.box_2d.length === 4) {
+                            try {
+                                const cropCanvas = document.createElement('canvas');
+                                const cropCtx = cropCanvas.getContext('2d');
+                                
+                                const ymin = (item.box_2d[0] / 1000) * img.height;
+                                const xmin = (item.box_2d[1] / 1000) * img.width;
+                                const ymax = (item.box_2d[2] / 1000) * img.height;
+                                const xmax = (item.box_2d[3] / 1000) * img.width;
+                                
+                                const cropWidth = xmax - xmin;
+                                const cropHeight = ymax - ymin;
+                                
+                                cropCanvas.width = cropWidth;
+                                cropCanvas.height = cropHeight;
+                                
+                                cropCtx.drawImage(img, xmin, ymin, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                                
+                                const thumbData = cropCanvas.toDataURL('image/jpeg', 0.6);
+                                base64StringForDb = thumbData; 
+                                thumbHtml = `<img src="${thumbData}" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover; border: 1px solid #ccc;">`;
+                            } catch (e) {
+                                console.warn("Failed to crop image for", item.title);
+                            }
+                        }
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td style="text-align: center;"><input type="checkbox" class="item-confirm" checked></td>
+                            <td style="text-align: center;">
+                                ${thumbHtml}
+                                <input type="hidden" class="item-img-base64" value="${base64StringForDb}">
+                            </td>
+                            <td><input type="text" class="item-title" value="${item.title}" style="width:100%;"></td>
+                            <td><input type="text" class="item-desc" value="${item.description}" style="width:100%;"></td>
+                        `;
+                        verificationTableBody.appendChild(row);
+                    });
+                    verificationArea.classList.remove('hidden');
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    if (btnAddManual) {
+        btnAddManual.addEventListener('click', () => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="text-align: center;"><input type="checkbox" class="item-confirm" checked></td>
+                <td style="text-align: center;"></td>
+                <td><input type="text" class="item-title" placeholder="Name" style="width:100%;"></td>
+                <td><input type="text" class="item-desc" placeholder="Desc" style="width:100%;"></td>
+            `;
+            verificationTableBody.appendChild(row);
+        });
+    }
+
+    if (btnSaveBulk) {
+        btnSaveBulk.addEventListener('click', async () => {
+            if (!mySupabaseDb) {
+                alert("Please configure your Supabase keys in the Settings tab first!");
+                return;
+            }
+
+            const targetLocation = document.getElementById('location-select').value;
+            const rows = verificationTableBody.querySelectorAll('tr');
+            let itemsToInsert = [];
+
+            rows.forEach(row => {
+                const keep = row.querySelector('.item-confirm').checked;
+                const title = row.querySelector('.item-title').value.trim();
+                const description = row.querySelector('.item-desc').value.trim();
+                const base64Img = row.querySelector('.item-img-base64') ? row.querySelector('.item-img-base64').value : "";
+                
+                if (keep && title) {
+                    itemsToInsert.push({ 
+                        title: title, 
+                        description: description,
+                        location: targetLocation,
+                        image_base64: base64Img 
+                    });
+                }
+            });
+
+            if (itemsToInsert.length === 0) {
+                alert("No confirmed items to save.");
+                return;
+            }
+
+            btnSaveBulk.innerText = "⏳ Saving to Database...";
+
+            const { data, error } = await mySupabaseDb
+                .from('items')
+                .insert(itemsToInsert);
+
+            if (error) {
+                console.error("Supabase Error:", error);
+                alert("Error saving to database: " + error.message);
+            } else {
+                alert(`Success! Saved ${itemsToInsert.length} items to ${targetLocation}.`);
+                verificationTableBody.innerHTML = ""; 
+                verificationArea.classList.add('hidden'); 
+            }
             
-            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-                <input type="text" id="new-location-input" placeholder="e.g., Garage Shelf 3" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
-                <button onclick="addNewLocation()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold;">➕ Add</button>
-            </div>
+            btnSaveBulk.innerText = "💾 Save Confirmed Items to Database";
+        });
+    }
+});
 
-            <ul id="locations-list" style="list-style-type: none; padding: 0; margin: 0;">
-                </ul>
-        </section>
+// --- 4. INVENTORY MANAGEMENT LOGIC (FILTER UPGRADED) ---
+let currentInventory = []; // Holds data in cache for lightning-fast filtering
 
-        <section id="screen-settings" class="view-panel hidden">
-            <h2>Application Settings</h2>
-            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Your keys are saved locally on this device.
-            </p>
+async function loadInventory() {
+    const tableBody = document.getElementById('items-table-body');
+    if (!tableBody) return;
 
-            <label>Supabase URL:</label>
-            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-            
-            <label>Supabase Anon Key:</label>
-            <input type="password" id="sb-key-input" placeholder="eyJh..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+    if (!mySupabaseDb) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Database not connected. Check Settings.</td></tr>`;
+        return;
+    }
 
-            <label>Gemini API Key:</label>
-            <input type="password" id="api-key-input" placeholder="AIzaSy..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-            
-            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold;">Save Configuration</button>
-        </section>
+    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">⏳ Loading your inventory...</td></tr>`;
 
-    </main>
+    try {
+        const { data, error } = await mySupabaseDb
+            .from('items')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-target="screen-home">
-            <span class="icon">🏠</span><span class="label">Home</span>
-        </button>
-        <button class="nav-item" data-target="screen-manage">
-            <span class="icon">📦</span><span class="label">Manage Items</span>
-        </button>
-        <button class="nav-item" data-target="screen-locations">
-            <span class="icon">📍</span><span class="label">Locations</span>
-        </button>
-        <button class="nav-item" data-target="screen-settings">
-            <span class="icon">⚙️</span><span class="label">Settings</span>
-        </button>
-    </nav>
+        if (error) throw error;
 
-    <script src="main.js"></script>
-</body>
-</html>
+        currentInventory = data; 
+        
+        populateFilterDropdown(); // Refresh options in the filter bar
+        window.renderInventoryTable(); // Build the table layout
+
+    } catch (err) {
+        console.error('Error fetching inventory:', err.message);
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Failed to load items.</td></tr>`;
+    }
+}
+
+function populateFilterDropdown() {
+    const filterDropdown = document.getElementById('inventory-filter');
+    if (!filterDropdown) return;
+
+    const currentSelection = filterDropdown.value;
+
+    // Dynamically discover all unique locations that currently exist in your DB rows
+    const uniqueLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))];
+
+    filterDropdown.innerHTML = `<option value="All">All Locations</option>`;
+    uniqueLocations.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc;
+        option.innerText = loc;
+        filterDropdown.appendChild(option);
+    });
+
+    if (uniqueLocations.includes(currentSelection)) {
+        filterDropdown.value = currentSelection;
+    }
+}
+
+window.renderInventoryTable = function() {
+    const tableBody = document.getElementById('items-table-body');
+    const filterDropdown = document.getElementById('inventory-filter');
+    const selectedLocation = filterDropdown ? filterDropdown.value : "All";
+
+    if (!tableBody) return;
+    tableBody.innerHTML = ''; 
+
+    const filteredData = selectedLocation === "All" 
+        ? currentInventory 
+        : currentInventory.filter(item => item.location === selectedLocation);
+
+    if (filteredData.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:gray;">No items found for this location.</td></tr>`;
+        return;
+    }
+
+    filteredData.forEach(item => {
+        const tr = document.createElement('tr');
+        const imageSrc = item.image_base64 ? item.image_base64 : 'data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+        tr.innerHTML = `
+            <td style="text-align: center;"><img src="${imageSrc}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"></td>
+            <td style="font-weight: bold;">${item.title || 'Untitled'}</td>
+            <td style="color: #666;">${item.description || ''}</td>
+            <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location || 'Unassigned'}</span></td>
+            <td style="text-align: center;">
+                <button onclick="deleteItem(${item.id})" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
+
+window.deleteItem = async function(id) {
+    if (!confirm("Are you sure you want to permanently delete this item?")) return;
+    if (!mySupabaseDb) return;
+
+    try {
+        const { error } = await mySupabaseDb
+            .from('items')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        loadInventory();
+    } catch (err) {
+        alert("Error deleting item: " + err.message);
+    }
+};
+
+// --- 5. LOCATIONS MANAGEMENT LOGIC ---
+function getSavedLocations() {
+    const stored = localStorage.getItem('locate_custom_zones');
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    return ["Garage Table Drawer A", "Master Bedroom Closet Bin B", "Kitchen Pantry Top Shelf"];
+}
+
+function saveLocations(locationsArray) {
+    localStorage.setItem('locate_custom_zones', JSON.stringify(locationsArray));
+}
+
+window.addNewLocation = function() {
+    const input = document.getElementById('new-location-input');
+    const newLoc = input.value.trim();
+    if (!newLoc) return;
+
+    const locations = getSavedLocations();
+    if (!locations.includes(newLoc)) {
+        locations.push(newLoc);
+        saveLocations(locations);
+        input.value = ''; 
+        
+        renderLocationsTab();
+        updateHomeDropdown(); 
+        
+        alert(`Added "${newLoc}" to your Storage Zones!`);
+    } else {
+        alert("That location already exists.");
+    }
+}
+
+function renderLocationsTab() {
+    const list = document.getElementById('locations-list');
+    if (!list) return;
+
+    const locations = getSavedLocations();
+    list.innerHTML = '';
+
+    locations.forEach(loc => {
+        const li = document.createElement('li');
+        li.style.cssText = "background: #f8f9fa; margin-bottom: 10px; padding: 15px; border-radius: 5px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;";
+        li.innerHTML = `
+            <span style="font-weight: bold;">📍 ${loc}</span>
+            <button onclick="removeLocation('${loc}')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+        `;
+        list.appendChild(li);
+    });
+}
+
+window.removeLocation = function(locToRemove) {
+    if (!confirm(`Remove "${locToRemove}" from your menu?\n\n(Note: Items already saved to this location in your database will not be deleted).`)) return;
+    
+    let locations = getSavedLocations();
+    locations = locations.filter(loc => loc !== locToRemove);
+    saveLocations(locations);
+    
+    renderLocationsTab();
+    updateHomeDropdown();
+}
+
+function updateHomeDropdown() {
+    const select = document.getElementById('location-select');
+    if (!select) return;
+
+    const locations = getSavedLocations();
+    const currentVal = select.value;
+
+    select.innerHTML = ''; 
+    
+    locations.forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc;
+        opt.innerText = loc;
+        select.appendChild(opt);
+    });
+
+    if (locations.includes(currentVal)) {
+        select.value = currentVal;
+    }
+}
