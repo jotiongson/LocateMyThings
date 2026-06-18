@@ -398,4 +398,21 @@ window.saveModalChanges = async () => {
     }
 };
 
+let isLoginMode = true;
+
+window.toggleAuthMode = () => {
+    isLoginMode = !isLoginMode;
+    document.getElementById('auth-title').innerText = isLoginMode ? "Log In" : "Create Account";
+    document.getElementById('main-auth-btn').innerText = isLoginMode ? "Log In" : "Sign Up";
+    document.getElementById('toggle-text').innerHTML = isLoginMode ? 
+        'Need an account? <span onclick="toggleAuthMode()" style="color: #007bff; font-weight: bold; cursor: pointer; text-decoration: underline;">Sign Up</span>' :
+        'Already have an account? <span onclick="toggleAuthMode()" style="color: #007bff; font-weight: bold; cursor: pointer; text-decoration: underline;">Log In</span>';
+    document.getElementById('auth-error').innerText = "";
+};
+
+window.executeAuth = () => {
+    if (isLoginMode) handleLogin();
+    else handleSignup();
+};
+
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
