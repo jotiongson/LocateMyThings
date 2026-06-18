@@ -18,21 +18,15 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
 window.globalLocations = []; 
 
 // --- DYNAMIC LOCATION FETCHER ---
-// This reads your actual item database to build the location lists automatically!
 async function refreshDynamicLocations() {
     if (!mySupabaseDb) return;
     
-    // Grab just the locations from the items table
     const { data, error } = await mySupabaseDb.from('items').select('location');
     if (error || !data) return;
 
-    // Filter out duplicates and sort them alphabetically
     window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
-
-    // FIXED: Added the visible text inside the option tags!
     const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
 
-    // Inject them into both datalists (Home screen and Modal)
     const homeDatalist = document.getElementById('home-location-options');
     if (homeDatalist) homeDatalist.innerHTML = optionsHtml;
 
@@ -67,14 +61,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const mainTitle = document.querySelector('h2');
     if (mainTitle && SUPABASE_URL && GEMINI_API_KEY) {
-        mainTitle.innerText = "System Online!";
-        mainTitle.style.color = "#007bff"; 
-        
-        // Fetch locations right away to populate the Home screen dropdown!
+        // We removed the blue "System Online" text because the TimbreBox style looks better without it
         refreshDynamicLocations();
     }
 
-    // A. SETTINGS
+    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC
+    const locSelect = document.getElementById('location-select');
+    const camBtnLabel = document.getElementById('camera-btn-label');
+    const imgInput = document.getElementById('image-input');
+
+    if (locSelect && camBtnLabel && imgInput) {
+        locSelect.addEventListener('input', () => {
+            if (locSelect.value.trim() !== "") {
+                camBtnLabel.style.background = "#20c997";
+                camBtnLabel.style.color = "white";
+                camBtnLabel.style.cursor = "pointer";
+                camBtnLabel.innerText = "📸 Take Photo or Upload Image";
+                imgInput.disabled = false;
+            } else {
+                camBtnLabel.style.background = "#e2e8f0";
+                camBtnLabel.style.color = "#94a3b8";
+                camBtnLabel.style.cursor = "not-allowed";
+                camBtnLabel.innerText = "🔒 Enter Location to Unlock Scanner";
+                imgInput.disabled = true;
+            }
+        });
+    }
+
+    // B. SETTINGS
     const sbUrlInput = document.getElementById('sb-url-input');
     const sbKeyInput = document.getElementById('sb-key-input');
     const apiKeyInput = document.getElementById('api-key-input');
@@ -89,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
-    // B. NAVIGATION
+    // C. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -109,10 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // C. CAMERA & GRID
-    const imageInput = document.getElementById('image-input');
-    if (imageInput) {
-        imageInput.addEventListener('change', async (e) => {
+    // D. CAMERA PROCESSING
+    if (imgInput) {
+        imgInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
             document.getElementById('loading-status').classList.remove('hidden');
@@ -146,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // D. SAVE BULK
+    // E. SAVE BULK TO CLOUD
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
         const targetLocation = document.getElementById('location-select').value.trim();
         
@@ -182,9 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { 
             alert("Success!"); 
             document.getElementById('verification-area').classList.add('hidden');
-            document.getElementById('verification-table-body').innerHTML = ""; // Clear the grid
+            document.getElementById('verification-table-body').innerHTML = ""; 
             
-            // Refresh our dynamic location list in case they typed a new location!
+            // Clear the location input and lock the camera again for the next scan
+            document.getElementById('location-select').value = "";
+            document.getElementById('location-select').dispatchEvent(new Event('input'));
+            
             refreshDynamicLocations();
         }
         
@@ -199,10 +215,7 @@ async function loadInventory() {
     const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
     
-    // Double duty: Update the dynamic dropdowns while we have all the data anyway
     window.globalLocations = [...new Set(currentInventory.map(item => item.location).filter(Boolean))].sort();
-    
-    // FIXED: Added the visible text inside the option tags!
     const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
     
     const homeDatalist = document.getElementById('home-location-options');
@@ -210,11 +223,8 @@ async function loadInventory() {
     const modalDatalist = document.getElementById('modal-location-options');
     if (modalDatalist) modalDatalist.innerHTML = optionsHtml;
 
-    // Populate the Manage Items filter
     const filter = document.getElementById('inventory-filter');
-    if (filter) {
-        filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
-    }
+    if (filter) filter.innerHTML = `<option value="All">All Locations</option>` + optionsHtml;
 
     window.renderInventoryTable();
 }
@@ -291,8 +301,8 @@ window.bulkDeleteItems = async function() {
         if (error) throw error;
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
         
-        loadInventory(); // Refresh the list, which also cleans up empty locations!
-        refreshDynamicLocations(); // Update the home screen
+        loadInventory(); 
+        refreshDynamicLocations(); 
     } catch (err) {
         alert("Error deleting items: " + err.message);
     }
@@ -317,7 +327,7 @@ window.saveModalChanges = async () => {
     if (error) alert("Error: " + error.message); 
     else {
         document.getElementById('item-modal').classList.add('hidden');
-        loadInventory(); // This automatically refreshes the dynamic locations too
+        loadInventory(); 
     }
 };
 
