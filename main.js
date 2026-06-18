@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-// D. SAVE BULK
+    // D. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
         const targetLocation = document.getElementById('location-select').value.trim();
         
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // SAFETY NET: Learn the new location if they typed one!
+        // Learn the new location if they typed one
         let savedLocs = getSavedLocations();
         if (!savedLocs.includes(targetLocation)) {
             savedLocs.push(targetLocation);
@@ -194,27 +194,22 @@ window.renderInventoryTable = function() {
     
     tbody.innerHTML = '';
     
-    // 1. Filter the data
     const filteredData = currentInventory.filter(item => 
         (loc === "All" || item.location === loc) && 
         (item.title.toLowerCase().includes(search) || item.description.toLowerCase().includes(search))
     );
 
-    // 2. Update the Item Count in the Header
     const countSpan = document.getElementById('inventory-count');
     if (countSpan) countSpan.innerText = `${filteredData.length} Item${filteredData.length !== 1 ? 's' : ''}`;
 
-    // 3. Reset the Checkboxes & Hide Delete Button
     document.getElementById('btn-bulk-delete').classList.add('hidden');
     const selectAllCb = document.getElementById('select-all-cb');
     if (selectAllCb) selectAllCb.checked = false;
 
-    // 4. Paint the rows
     filteredData.forEach(item => {
         const tr = document.createElement('tr');
         tr.style.cursor = "pointer";
         
-        // Block modal from opening if the user clicks the checkbox
         tr.onclick = (e) => {
             if (e.target.tagName.toLowerCase() === 'input') return;
             openModal(item);
@@ -258,7 +253,6 @@ window.bulkDeleteItems = async function() {
 
     if (!confirm(`Are you sure you want to permanently delete ${checkedBoxes.length} item(s)?`)) return;
 
-    // Grab all the IDs we want to delete
     const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
     try {
@@ -270,7 +264,7 @@ window.bulkDeleteItems = async function() {
         if (error) throw error;
         
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
-        loadInventory(); // Refresh the list!
+        loadInventory(); 
     } catch (err) {
         alert("Error deleting items: " + err.message);
     }
@@ -284,6 +278,7 @@ function openModal(item) {
     document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
 
+    // Fixed: Populating the Datalist properly
     const datalist = document.getElementById('modal-location-options');
     if (datalist) {
         datalist.innerHTML = getSavedLocations().map(loc => `<option value="${loc}">`).join('');
@@ -314,7 +309,7 @@ window.saveModalChanges = async () => {
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
 
-// --- 5. LOCATIONS LOGIC (CRASH PROOFED) ---
+// --- 5. LOCATIONS LOGIC ---
 function getSavedLocations() {
     try {
         const stored = localStorage.getItem('locate_custom_zones');
@@ -329,6 +324,7 @@ function renderLocationsTab() {
     list.innerHTML = getSavedLocations().map(loc => `<li style="background:#f8f9fa; margin-bottom:10px; padding:15px; border:1px solid #ddd; display:flex; justify-content:space-between;">${loc} <button onclick="removeLocation('${loc}')">🗑️</button></li>`).join('');
 }
 
+// Fixed: Routing to the proper datalist for the Home screen
 function updateHomeDropdown() {
     const datalist = document.getElementById('home-location-options');
     if (!datalist) return;
