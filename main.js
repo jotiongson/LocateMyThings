@@ -101,9 +101,7 @@ async function scanContainerWithAI(base64Image) {
             return [];
         }
 
-        let rawText = data.candidates[0].content.parts[0].text.trim();
-        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
-        return JSON.parse(rawText); 
+        return data;
         
     } catch (error) { 
         alert("Failed to communicate with secure server. Ensure Edge Function is deployed."); 
