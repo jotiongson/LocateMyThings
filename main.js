@@ -21,7 +21,6 @@ window.mySupabaseDb.auth.onAuthStateChange((event, session) => {
     }
 });
 
-// Auth Functions
 window.sendMagicLink = async () => {
     const email = document.getElementById('auth-email').value.trim();
     const errorDiv = document.getElementById('auth-error');
@@ -34,7 +33,10 @@ window.sendMagicLink = async () => {
 
     const { error } = await window.mySupabaseDb.auth.signInWithOtp({
         email: email,
-        options: { emailRedirectTo: window.location.origin }
+        options: { 
+            // FIXED: Explicitly telling it exactly where the app lives!
+            emailRedirectTo: "https://jotiongson.github.io/LocateMyThings/" 
+        }
     });
 
     if (error) {
