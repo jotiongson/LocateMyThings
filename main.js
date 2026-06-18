@@ -45,8 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mainTitle.style.color = "#007bff"; 
     }
 
-    updateHomeDropdown();
-    renderLocationsTab();
+    // NEW: Fetch locations from the cloud immediately on load!
+    loadLocations();
 
     // A. SETTINGS
     const sbUrlInput = document.getElementById('sb-url-input');
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     });
 
-    // B. NAVIGATION WITH ACTIVE HIGHLIGHTS
+    // B. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -146,13 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Learn the new location if they typed one
-        let savedLocs = getSavedLocations();
-        if (!savedLocs.includes(targetLocation)) {
-            savedLocs.push(targetLocation);
-            localStorage.setItem('locate_custom_zones', JSON.stringify(savedLocs));
-            renderLocationsTab();
-            updateHomeDropdown();
+        // AUTO-LEARN CLOUD LOCATION
+        if (!currentLocations.includes(targetLocation)) {
+            await mySupabaseDb.from('locations').insert({ name: targetLocation });
+            await loadLocations(); // Refresh the cloud list
         }
 
         document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
@@ -228,7 +225,7 @@ window.renderInventoryTable = function() {
     });
 }
 
-// BULK DELETE UI LOGIC
+// BULK DELETE
 window.toggleSelectAll = function() {
     const masterCb = document.getElementById('select-all-cb');
     const rowCbs = document.querySelectorAll('.row-cb');
@@ -239,30 +236,20 @@ window.toggleSelectAll = function() {
 window.checkBulkDeleteStatus = function() {
     const anyChecked = document.querySelector('.row-cb:checked') !== null;
     const btn = document.getElementById('btn-bulk-delete');
-    if (anyChecked) {
-        btn.classList.remove('hidden');
-    } else {
-        btn.classList.add('hidden');
-    }
+    if (anyChecked) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
 }
 
-// ACTUAL BULK DELETE DATABASE CALL
 window.bulkDeleteItems = async function() {
     const checkedBoxes = document.querySelectorAll('.row-cb:checked');
     if (checkedBoxes.length === 0) return;
-
     if (!confirm(`Are you sure you want to permanently delete ${checkedBoxes.length} item(s)?`)) return;
 
     const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
     try {
-        const { error } = await mySupabaseDb
-            .from('items')
-            .delete()
-            .in('id', idsToDelete);
-
+        const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
         if (error) throw error;
-        
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
         loadInventory(); 
     } catch (err) {
@@ -270,7 +257,7 @@ window.bulkDeleteItems = async function() {
     }
 }
 
-// MODAL LOGIC
+// MODAL
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title').innerText = item.title;
@@ -278,10 +265,10 @@ function openModal(item) {
     document.getElementById('modal-location').value = item.location;
     window.activeItemId = item.id;
 
-    // Fixed: Populating the Datalist properly
+    // Use cloud locations
     const datalist = document.getElementById('modal-location-options');
     if (datalist) {
-        datalist.innerHTML = getSavedLocations().map(loc => `<option value="${loc}">`).join('');
+        datalist.innerHTML = currentLocations.map(loc => `<option value="${loc}">`).join('');
     }
 
     document.getElementById('item-modal').classList.remove('hidden');
@@ -291,13 +278,10 @@ window.saveModalChanges = async () => {
     const locInput = document.getElementById('modal-location').value.trim();
     if (!locInput) return alert("Location cannot be empty.");
 
-    let savedLocs = getSavedLocations();
-    if (!savedLocs.includes(locInput)) {
-        savedLocs.push(locInput);
-        localStorage.setItem('locate_custom_zones', JSON.stringify(savedLocs));
-        renderLocationsTab();
-        updateHomeDropdown();
-        populateFilterDropdown(); 
+    // AUTO-LEARN CLOUD LOCATION
+    if (!currentLocations.includes(locInput)) {
+        await mySupabaseDb.from('locations').insert({ name: locInput });
+        await loadLocations();
     }
 
     const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
@@ -309,44 +293,67 @@ window.saveModalChanges = async () => {
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
 
-// --- 5. LOCATIONS LOGIC ---
-function getSavedLocations() {
-    try {
-        const stored = localStorage.getItem('locate_custom_zones');
-        if (stored) return JSON.parse(stored);
-    } catch (e) { console.warn("Could not parse locations."); }
-    return ["Garage Table Drawer A", "Master Bedroom Closet Bin B", "Kitchen Pantry Top Shelf"];
+// --- 5. CLOUD LOCATIONS LOGIC ---
+let currentLocations = []; // Holds the cloud locations in memory
+
+async function loadLocations() {
+    if (!mySupabaseDb) return;
+    
+    // Pull the master list from your database, sorted alphabetically
+    const { data, error } = await mySupabaseDb.from('locations').select('name').order('name', { ascending: true });
+    
+    if (!error && data) {
+        currentLocations = data.map(row => row.name);
+        renderLocationsTab();
+        updateHomeDropdown();
+    }
 }
 
 function renderLocationsTab() {
     const list = document.getElementById('locations-list');
     if (!list) return;
-    list.innerHTML = getSavedLocations().map(loc => `<li style="background:#f8f9fa; margin-bottom:10px; padding:15px; border:1px solid #ddd; display:flex; justify-content:space-between;">${loc} <button onclick="removeLocation('${loc}')">🗑️</button></li>`).join('');
+    
+    list.innerHTML = currentLocations.map(loc => {
+        // Escape quotes just in case your location has an apostrophe (like "Jim's Box")
+        const safeLoc = loc.replace(/'/g, "\\'");
+        return `<li style="background:#f8f9fa; margin-bottom:10px; padding:15px; border:1px solid #ddd; display:flex; justify-content:space-between; align-items: center;">
+            <span style="font-weight: bold;">📍 ${loc}</span>
+            <button onclick="removeLocation('${safeLoc}')" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+        </li>`;
+    }).join('');
 }
 
-// Fixed: Routing to the proper datalist for the Home screen
 function updateHomeDropdown() {
     const datalist = document.getElementById('home-location-options');
     if (!datalist) return;
-    datalist.innerHTML = getSavedLocations().map(l => `<option value="${l}">`).join('');
+    datalist.innerHTML = currentLocations.map(l => `<option value="${l}">`).join('');
 }
 
-window.addNewLocation = () => {
+window.addNewLocation = async () => {
     const val = document.getElementById('new-location-input').value.trim();
     if(!val) return;
-    let locs = getSavedLocations();
-    if(!locs.includes(val)) {
-        locs.push(val);
-        localStorage.setItem('locate_custom_zones', JSON.stringify(locs));
-        renderLocationsTab();
-        updateHomeDropdown();
-        document.getElementById('new-location-input').value = '';
+    
+    if(!currentLocations.includes(val)) {
+        const { error } = await mySupabaseDb.from('locations').insert({ name: val });
+        if (error) {
+            alert("Error adding location to database: " + error.message);
+        } else {
+            document.getElementById('new-location-input').value = '';
+            await loadLocations(); // Refresh the list from the cloud
+        }
+    } else {
+        alert("That location already exists!");
     }
 };
 
-window.removeLocation = (l) => {
-    let locs = getSavedLocations().filter(item => item !== l);
-    localStorage.setItem('locate_custom_zones', JSON.stringify(locs));
-    renderLocationsTab();
-    updateHomeDropdown();
+window.removeLocation = async (locToRemove) => {
+    if (!confirm(`Remove "${locToRemove}" from your list?\n\n(Items already in this location won't be deleted).`)) return;
+    
+    const { error } = await mySupabaseDb.from('locations').delete().eq('name', locToRemove);
+    
+    if (error) {
+        alert("Error deleting location: " + error.message);
+    } else {
+        await loadLocations(); // Refresh the list from the cloud
+    }
 };
