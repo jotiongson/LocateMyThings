@@ -15,25 +15,25 @@
             
             <div class="form-group" style="margin-bottom: 15px;">
                 <label style="font-weight: bold; display: block; margin-bottom: 5px;">Location:</label>
-                <input type="text" id="location-select" list="home-location-options" placeholder="Select or type new location..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
+                <input type="text" id="location-select" list="home-location-options" placeholder="Select or type new location..." autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
                 <datalist id="home-location-options"></datalist>
             </div>
 
             <div class="form-group">
-                <label for="image-input" class="primary-btn" style="text-align:center; display:block; padding: 15px; background: #28a745; color: white; border-radius: 5px; cursor: pointer;">
+                <label for="image-input" class="primary-btn" style="text-align:center; display:block; padding: 15px; background: #28a745; color: white; border-radius: 5px; cursor: pointer; font-weight: bold;">
                     📸 Take Photo or Upload Image
                 </label>
                 <input type="file" id="image-input" accept="image/*" style="display:none;">
             </div>
 
             <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
-                🤖 Gemini AI is processing the container image...
+                ⏳ Gemini AI is analyzing the image...
             </div>
 
             <div id="verification-area" class="hidden">
                 <h3 style="margin-top: 20px;">Verify Detected Items</h3>
                 <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">
-                    Uncheck items to ignore them. Click on text to edit names or descriptions.
+                    Uncheck items to ignore them. Edit titles and descriptions directly.
                 </p>
                 
                 <div class="table-wrapper">
@@ -51,7 +51,7 @@
                     </table>
                 </div>
 
-                <button id="btn-add-manual" style="background-color: #6c757d; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 10px; width: 100%;">
+                <button id="btn-add-manual" style="background-color: #6c757d; color: white; border: none; border-radius: 5px; padding: 10px; margin-top: 10px; width: 100%; font-weight: bold;">
                     ➕ Add Item AI Missed
                 </button>
 
@@ -68,14 +68,14 @@
             </div>
             
             <div style="margin-bottom: 10px;">
-                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="text" id="inventory-search" placeholder="🔍 Search by title or description..." autocomplete="off" onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 8px;">
+                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                     <option value="All">All Locations</option>
                 </select>
-                <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
                     🗑️ Delete Selected
                 </button>
             </div>
@@ -95,19 +95,19 @@
                 </table>
             </div>
 
-            <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box;">
-                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto; margin-top: 10vh;">
-                    <img id="modal-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: 4px;">
-                    <h3 id="modal-title" style="margin: 15px 0;"></h3>
-                    <p id="modal-desc" style="color: #666;"></p>
+            <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
+                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 5vh auto;">
+                    <img id="modal-img" src="" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                    <h3 id="modal-title" style="margin: 15px 0 5px 0;"></h3>
+                    <p id="modal-desc" style="color: #666; margin-bottom: 15px; line-height: 1.4;"></p>
                     
                     <label style="font-weight: bold; color: #333;">Location:</label>
-                    <input type="text" id="modal-location" list="modal-location-options" placeholder="Select or type new location..." style="width: 100%; margin: 10px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                    <input type="text" id="modal-location" list="modal-location-options" placeholder="Select or type new location..." autocomplete="off" style="width: 100%; margin: 5px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
                     <datalist id="modal-location-options"></datalist>
 
                     <div style="display: flex; gap: 10px;">
-                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:10px; border-radius: 4px; font-weight: bold;">💾 Save</button>
-                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:10px; border-radius: 4px; font-weight: bold;">❌ Close</button>
+                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">💾 Save</button>
+                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">❌ Close</button>
                     </div>
                 </div>
             </div>
@@ -116,12 +116,12 @@
         <section id="screen-locations" class="view-panel hidden">
             <h2>Storage Zones</h2>
             <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Manage your physical storage containers. These will appear in your Home tab dropdown.
+                Manage your physical storage containers. Adding locations here makes them available across the app.
             </p>
             
             <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-                <input type="text" id="new-location-input" placeholder="e.g., Garage Shelf 3" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
-                <button onclick="addNewLocation()" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold;">➕ Add</button>
+                <input type="text" id="new-location-input" placeholder="e.g., Garage Shelf 3" autocomplete="off" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                <button onclick="addNewLocation()" style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">➕ Add</button>
             </div>
 
             <ul id="locations-list" style="list-style-type: none; padding: 0; margin: 0;">
@@ -131,19 +131,19 @@
         <section id="screen-settings" class="view-panel hidden">
             <h2>Application Settings</h2>
             <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Your keys are saved locally on this device.
+                Your API keys are stored securely in this browser's local memory.
             </p>
 
-            <label>Supabase URL:</label>
-            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <label style="font-weight: bold;">Supabase Project URL:</label>
+            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             
-            <label>Supabase Anon Key:</label>
-            <input type="password" id="sb-key-input" placeholder="eyJh..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <label style="font-weight: bold;">Supabase Anon Key:</label>
+            <input type="password" id="sb-key-input" placeholder="eyJh..." autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
 
-            <label>Gemini API Key:</label>
-            <input type="password" id="api-key-input" placeholder="AIzaSy..." style="width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <label style="font-weight: bold;">Gemini API Key:</label>
+            <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" style="width: 100%; margin: 5px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             
-            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold;">Save Configuration</button>
+            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">💾 Save Configuration</button>
         </section>
 
     </main>
