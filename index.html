@@ -27,7 +27,6 @@
                 <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-top: 10px;">
             </div>
 
-            <!-- ENHANCEMENT 4: Split Camera & Upload Buttons -->
             <div class="form-group" style="display: flex; gap: 10px;">
                 <label id="camera-btn-label" for="camera-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
                     🔒 Unlock Camera
@@ -35,9 +34,7 @@
                 <label id="upload-btn-label" for="upload-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
                     🔒 Unlock Upload
                 </label>
-                <!-- capture="environment" opens native rear camera directly -->
                 <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" disabled>
-                <!-- standard input opens file picker/gallery -->
                 <input type="file" id="upload-input" accept="image/*" style="display:none;" disabled>
             </div>
 
@@ -55,7 +52,6 @@
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr>
-                                <!-- ENHANCEMENT 1: Line number column header -->
                                 <th style="width: 30px; text-align: center;">#</th>
                                 <th style="width: 40px; text-align: center;">Keep</th>
                                 <th style="width: 60px; text-align: center;">Image</th>
@@ -96,7 +92,6 @@
                 </button>
             </div>
 
-            <!-- ENHANCEMENT 3: Loading indicator -->
             <div id="inventory-loading" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-bottom: 15px; padding: 10px;">
                 ⏳ Fetching your items...
             </div>
@@ -118,9 +113,14 @@
 
             <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
                 <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 5vh auto;">
-                    <img id="modal-img" src="" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
-                    <h3 id="modal-title" style="margin: 15px 0 5px 0;"></h3>
-                    <p id="modal-desc" style="color: #666; margin-bottom: 15px; line-height: 1.4;"></p>
+                    
+                    <img id="modal-img" src="" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 15px;">
+                    
+                    <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Item Title:</label>
+                    <input type="text" id="modal-title-input" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1rem; font-weight: bold; box-sizing: border-box; margin-bottom: 15px;">
+
+                    <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Description:</label>
+                    <textarea id="modal-desc-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-bottom: 15px; resize: vertical;"></textarea>
                     
                     <label style="font-weight: bold; color: #333;">Change Location:</label>
                     <select id="modal-location-select" style="width: 100%; margin: 5px 0 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
