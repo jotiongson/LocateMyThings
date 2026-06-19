@@ -27,11 +27,18 @@
                 <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-top: 10px;">
             </div>
 
-            <div class="form-group">
-                <label id="camera-btn-label" for="image-input" style="text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
-                    🔒 Select Location to Unlock Scanner
+            <!-- ENHANCEMENT 4: Split Camera & Upload Buttons -->
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <label id="camera-btn-label" for="camera-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                    🔒 Unlock Camera
                 </label>
-                <input type="file" id="image-input" accept="image/*" style="display:none;" disabled>
+                <label id="upload-btn-label" for="upload-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                    🔒 Unlock Upload
+                </label>
+                <!-- capture="environment" opens native rear camera directly -->
+                <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" disabled>
+                <!-- standard input opens file picker/gallery -->
+                <input type="file" id="upload-input" accept="image/*" style="display:none;" disabled>
             </div>
 
             <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
@@ -48,6 +55,8 @@
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr>
+                                <!-- ENHANCEMENT 1: Line number column header -->
+                                <th style="width: 30px; text-align: center;">#</th>
                                 <th style="width: 40px; text-align: center;">Keep</th>
                                 <th style="width: 60px; text-align: center;">Image</th>
                                 <th>Item Title</th>
@@ -85,6 +94,11 @@
                 <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
                     🗑️ Delete Selected
                 </button>
+            </div>
+
+            <!-- ENHANCEMENT 3: Loading indicator -->
+            <div id="inventory-loading" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-bottom: 15px; padding: 10px;">
+                ⏳ Fetching your items...
             </div>
 
             <div class="table-wrapper">
