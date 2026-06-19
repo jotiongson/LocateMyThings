@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LocateMyThings</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LocateMyThings">
+    <meta name="theme-color" content="#20c997">
+    
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -33,7 +42,10 @@
     <main id="app-content" class="hidden">
         
         <section id="screen-home" class="view-panel">
-            <h2 style="margin-bottom: 20px;">Add New Item</h2>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e5ea;">
+                <span style="font-size: 2rem; line-height: 1;">📦🔍</span>
+                <h1 style="margin: 0; font-size: 1.5rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+            </div>
             
             <div style="border: 1px solid #dee2e6; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
                 <label style="font-weight: bold; color: #495057; display: block; margin-bottom: 10px; font-size: 0.95rem;">Storage Location</label>
