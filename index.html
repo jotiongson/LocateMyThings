@@ -8,23 +8,42 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <main id="app-content">
+
+    <div id="auth-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#f8f9fa; z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div style="width:90%; max-width:400px; background:white; padding:30px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+            
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="font-size: 3rem; margin-bottom: 5px;">📦🔍</div>
+                <h1 style="margin: 0; font-size: 1.8rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+            </div>
+
+            <h2 id="auth-title" style="text-align:center; margin-bottom:10px; font-size: 1.2rem;">Welcome back</h2>
+            <p id="auth-subtitle" style="text-align:center; color:gray; margin-bottom:20px; font-size: 0.9rem;">Enter your credentials to access your items.</p>
+            
+            <input type="email" id="auth-email" placeholder="Email Address" style="width:100%; margin-bottom:15px; padding:12px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
+            <input type="password" id="auth-password" placeholder="Password" style="width:100%; margin-bottom:20px; padding:12px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
+            
+            <button id="auth-btn" style="width:100%; padding:15px; background:#007bff; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;" onclick="handleAuth()">Secure Login</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle" style="background:none; color:#007bff; border:none; width:100%; margin-top:15px; font-weight:bold; cursor:pointer;">Don't have an account? Register Here</button>
+            
+            <button onclick="document.getElementById('auth-screen').style.display='none'; document.getElementById('app-content').classList.remove('hidden'); document.querySelector('[data-target=\'screen-settings\']').click();" style="background:none; color:#6c757d; border:none; width:100%; margin-top:25px; font-size: 0.85rem; text-decoration: underline; cursor:pointer;">⚙️ Setup Database Connection</button>
+        </div>
+    </div>
+
+    <main id="app-content" class="hidden">
         
         <section id="screen-home" class="view-panel">
-            <h2 style="margin-bottom: 20px;">Add to Collection</h2>
+            <h2 style="margin-bottom: 20px;">Add New Item</h2>
             
-            <div style="border: 2px solid #20c997; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="color: #0f5132; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;">📍 ACTIVE LOCATION</span>
-                    <span style="background-color: #d1e7dd; color: #0f5132; font-size: 0.7rem; font-weight: bold; padding: 3px 8px; border-radius: 12px;">REQUIRED</span>
-                </div>
+            <div style="border: 1px solid #dee2e6; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                <label style="font-weight: bold; color: #495057; display: block; margin-bottom: 10px; font-size: 0.95rem;">Storage Location</label>
                 
-                <select id="location-select" style="width: 100%; border: none; font-size: 1.1rem; color: #20c997; outline: none; background: transparent; padding: 5px 0;">
+                <select id="location-select" style="width: 100%; border: 1px solid #ced4da; border-radius: 8px; font-size: 1.05rem; color: #212529; outline: none; background: #f8f9fa; padding: 12px;">
                     <option value="">-- Select a Location --</option>
                     <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
                 </select>
 
-                <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-top: 10px;">
+                <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-top: 10px; background: #f8f9fa;">
             </div>
 
             <div class="form-group" style="display: flex; gap: 10px;">
@@ -154,6 +173,7 @@
             <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" style="width: 100%; margin: 5px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             
             <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">💾 Save Configuration</button>
+            <button onclick="logout()" style="width: 100%; padding: 15px; background: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 20px;">🚪 Log Out / Switch Account</button>
         </section>
 
     </main>
