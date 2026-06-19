@@ -387,10 +387,14 @@ window.bulkDeleteItems = async function() {
     }
 }
 
+// MODAL ENHANCEMENTS: Populate text inputs when opening
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
-    document.getElementById('modal-title').innerText = item.title;
-    document.getElementById('modal-desc').innerText = item.description;
+    
+    // Set the input fields with the existing data
+    document.getElementById('modal-title-input').value = item.title;
+    document.getElementById('modal-desc-input').value = item.description;
+    
     window.activeItemId = item.id;
 
     const modalSelect = document.getElementById('modal-location-select');
@@ -405,6 +409,7 @@ function openModal(item) {
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
+// MODAL ENHANCEMENTS: Grab the new title and description to save
 window.saveModalChanges = async () => {
     if (!mySupabaseDb) return;
     
@@ -415,9 +420,17 @@ window.saveModalChanges = async () => {
         locInput = document.getElementById('modal-location-input').value.trim();
     }
 
-    if (!locInput) return alert("Location cannot be empty.");
+    const newTitle = document.getElementById('modal-title-input').value.trim();
+    const newDesc = document.getElementById('modal-desc-input').value.trim();
 
-    const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
+    if (!locInput) return alert("Location cannot be empty.");
+    if (!newTitle) return alert("Title cannot be empty.");
+
+    const { error } = await mySupabaseDb.from('items').update({ 
+        location: locInput,
+        title: newTitle,
+        description: newDesc
+    }).eq('id', window.activeItemId);
     
     if (error) alert("Error: " + error.message); 
     else {
