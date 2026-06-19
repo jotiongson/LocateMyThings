@@ -62,8 +62,7 @@ async function scanContainerWithAI(base64Image) {
         if (result.error) { alert("AI Error: " + result.error.message); return []; }
 
         let rawText = result.candidates[0].content.parts[0].text.trim();
-        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("
-```json", "").replaceAll("```", "").trim();
+        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
         return JSON.parse(rawText); 
     } catch (error) { alert("Failed to parse AI response."); return []; }
 }
@@ -75,11 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshDynamicLocations();
     }
 
-    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC (HYBRID SYSTEM)
+    // A. UI LOCK/UNLOCK LOGIC
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
     
-    // ENHANCEMENT 4: Grabbing both camera and upload elements
     const camBtnLabel = document.getElementById('camera-btn-label');
     const uploadBtnLabel = document.getElementById('upload-btn-label');
     const camInput = document.getElementById('camera-input');
@@ -91,28 +89,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
 
         if (finalVal !== "") {
-            // Unlock Camera
             camBtnLabel.style.background = "#20c997";
             camBtnLabel.style.color = "white";
             camBtnLabel.style.cursor = "pointer";
             camBtnLabel.innerText = "📸 Take Photo";
             camInput.disabled = false;
 
-            // Unlock Upload
             uploadBtnLabel.style.background = "#007bff";
             uploadBtnLabel.style.color = "white";
             uploadBtnLabel.style.cursor = "pointer";
             uploadBtnLabel.innerText = "📁 Select File";
             uploadInput.disabled = false;
         } else {
-            // Lock Camera
             camBtnLabel.style.background = "#e2e8f0";
             camBtnLabel.style.color = "#94a3b8";
             camBtnLabel.style.cursor = "not-allowed";
             camBtnLabel.innerText = "🔒 Location Required";
             camInput.disabled = true;
 
-            // Lock Upload
             uploadBtnLabel.style.background = "#e2e8f0";
             uploadBtnLabel.style.color = "#94a3b8";
             uploadBtnLabel.style.cursor = "not-allowed";
@@ -159,17 +153,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if(sbKeyInput) sbKeyInput.value = SUPABASE_ANON_KEY;
     if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
     
-    document.getElementById('btn-save-settings').addEventListener('click', () => {
-        let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
-        let cleanKey = sbKeyInput.value.trim();
-        let cleanGemini = apiKeyInput.value.trim();
-    
-        localStorage.setItem('locate_sb_url', cleanUrl);
-        localStorage.setItem('locate_sb_key', cleanKey);
-        localStorage.setItem('locate_gemini_key', cleanGemini);
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+    if (btnSaveSettings) {
+        btnSaveSettings.addEventListener('click', () => {
+            let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
+            let cleanKey = sbKeyInput.value.trim();
+            let cleanGemini = apiKeyInput.value.trim();
         
-        location.reload();
-    });
+            localStorage.setItem('locate_sb_url', cleanUrl);
+            localStorage.setItem('locate_sb_key', cleanKey);
+            localStorage.setItem('locate_gemini_key', cleanGemini);
+            
+            location.reload();
+        });
+    }
 
     // C. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
@@ -191,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // D. CAMERA PROCESSING (ENHANCEMENT 4: Unified handler for both inputs)
+    // D. CAMERA PROCESSING
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -205,9 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const detectedItems = await scanContainerWithAI(base64Data);
             document.getElementById('loading-status').classList.add('hidden');
             
-            document.getElementById('verification-table-body').innerHTML = ""; // Clear old results
+            document.getElementById('verification-table-body').innerHTML = ""; 
             
-            // ENHANCEMENT 1: Inject index + 1 to create line numbers
             detectedItems.forEach((item, index) => {
                 let thumbHtml = "", base64Str = "";
                 if (item.box_2d) {
@@ -231,69 +227,70 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('verification-area').classList.remove('hidden');
         };
         img.src = URL.createObjectURL(file);
-        e.target.value = ""; // Reset input so same file can be re-selected if needed
+        e.target.value = ""; 
     };
 
     if (camInput) camInput.addEventListener('change', handleImageSelection);
     if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
     // E. SAVE BULK
-    document.getElementById('btn-save-bulk').addEventListener('click', async () => {
-        if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+    const btnSaveBulk = document.getElementById('btn-save-bulk');
+    if (btnSaveBulk) {
+        btnSaveBulk.addEventListener('click', async () => {
+            if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
 
-        const selectElement = document.getElementById('location-select');
-        let targetLocation = selectElement.value;
-        
-        if (targetLocation === "NEW") {
-            targetLocation = document.getElementById('new-location-input-home').value.trim();
-        }
-
-        if (!targetLocation) {
-            alert("Please enter or select a location before saving.");
-            return;
-        }
-
-        const rows = document.querySelectorAll('#verification-table-body tr');
-        let toInsert = [];
-        rows.forEach(row => {
-            if (row.querySelector('.item-confirm').checked) {
-                toInsert.push({ 
-                    title: row.querySelector('.item-title').value,
-                    description: row.querySelector('.item-desc').value,
-                    location: targetLocation,
-                    image_base64: row.querySelector('.item-img-base64').value
-                });
+            const selectElement = document.getElementById('location-select');
+            let targetLocation = selectElement.value;
+            
+            if (targetLocation === "NEW") {
+                targetLocation = document.getElementById('new-location-input-home').value.trim();
             }
+
+            if (!targetLocation) {
+                alert("Please enter or select a location before saving.");
+                return;
+            }
+
+            const rows = document.querySelectorAll('#verification-table-body tr');
+            let toInsert = [];
+            rows.forEach(row => {
+                if (row.querySelector('.item-confirm').checked) {
+                    toInsert.push({ 
+                        title: row.querySelector('.item-title').value,
+                        description: row.querySelector('.item-desc').value,
+                        location: targetLocation,
+                        image_base64: row.querySelector('.item-img-base64').value
+                    });
+                }
+            });
+
+            if (toInsert.length === 0) {
+                alert("No items selected to save.");
+                return;
+            }
+
+            btnSaveBulk.innerText = "⏳ Saving...";
+
+            const { error } = await mySupabaseDb.from('items').insert(toInsert);
+            
+            if (error) {
+                alert("Database Error: " + error.message);
+            } else { 
+                alert(`Successfully saved ${toInsert.length} item(s)!`); 
+                document.getElementById('verification-area').classList.add('hidden');
+                document.getElementById('verification-table-body').innerHTML = ""; 
+                
+                selectElement.value = "";
+                document.getElementById('new-location-input-home').classList.add('hidden');
+                document.getElementById('new-location-input-home').value = "";
+                selectElement.dispatchEvent(new Event('change'));
+                
+                refreshDynamicLocations();
+            }
+            
+            btnSaveBulk.innerText = "💾 Save Confirmed Items to Database";
         });
-
-        if (toInsert.length === 0) {
-            alert("No items selected to save.");
-            return;
-        }
-
-        document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
-
-        const { error } = await mySupabaseDb.from('items').insert(toInsert);
-        
-        if (error) {
-            alert("Database Error: " + error.message);
-        } else { 
-            // ENHANCEMENT 2: Dynamic Success Count
-            alert(`Successfully saved ${toInsert.length} item(s)!`); 
-            document.getElementById('verification-area').classList.add('hidden');
-            document.getElementById('verification-table-body').innerHTML = ""; 
-            
-            // Reset UI
-            selectElement.value = "";
-            document.getElementById('new-location-input-home').classList.add('hidden');
-            document.getElementById('new-location-input-home').value = "";
-            selectElement.dispatchEvent(new Event('change'));
-            
-            refreshDynamicLocations();
-        }
-        
-        document.getElementById('btn-save-bulk').innerText = "💾 Save Confirmed Items to Database";
-    });
+    }
 });
 
 // --- 4. INVENTORY MANAGEMENT & MODAL ---
@@ -302,7 +299,6 @@ let currentInventory = [];
 async function loadInventory() {
     if (!mySupabaseDb) return;
     
-    // ENHANCEMENT 3: Show Loading Animation
     const loadingDiv = document.getElementById('inventory-loading');
     if(loadingDiv) loadingDiv.classList.remove('hidden');
 
@@ -311,7 +307,6 @@ async function loadInventory() {
     refreshDynamicLocations(); 
     window.renderInventoryTable();
 
-    // ENHANCEMENT 3: Hide Loading Animation once finished
     if(loadingDiv) loadingDiv.classList.add('hidden');
 }
 
@@ -360,7 +355,6 @@ window.renderInventoryTable = function() {
     });
 }
 
-// BULK DELETE
 window.toggleSelectAll = function() {
     const masterCb = document.getElementById('select-all-cb');
     const rowCbs = document.querySelectorAll('.row-cb');
@@ -393,7 +387,6 @@ window.bulkDeleteItems = async function() {
     }
 }
 
-// MODAL
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title').innerText = item.title;
