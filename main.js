@@ -28,7 +28,6 @@ async function refreshDynamicLocations() {
         
         const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
         
-        // Base options so you are NEVER locked out
         const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
         const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
         const baseFilter = `<option value="All">All Locations</option>`;
@@ -63,7 +62,8 @@ async function scanContainerWithAI(base64Image) {
         if (result.error) { alert("AI Error: " + result.error.message); return []; }
 
         let rawText = result.candidates[0].content.parts[0].text.trim();
-        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
+        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("
+```json", "").replaceAll("```", "").trim();
         return JSON.parse(rawText); 
     } catch (error) { alert("Failed to parse AI response."); return []; }
 }
@@ -78,26 +78,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // A. TIMBREBOX UI LOCK/UNLOCK LOGIC (HYBRID SYSTEM)
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
+    
+    // ENHANCEMENT 4: Grabbing both camera and upload elements
     const camBtnLabel = document.getElementById('camera-btn-label');
-    const imgInput = document.getElementById('image-input');
+    const uploadBtnLabel = document.getElementById('upload-btn-label');
+    const camInput = document.getElementById('camera-input');
+    const uploadInput = document.getElementById('upload-input');
 
     function checkHomeUnlockStatus() {
-        if(!locSelect || !newLocInput || !camBtnLabel || !imgInput) return;
+        if(!locSelect || !newLocInput || !camBtnLabel || !uploadBtnLabel || !camInput || !uploadInput) return;
         
         let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
 
         if (finalVal !== "") {
+            // Unlock Camera
             camBtnLabel.style.background = "#20c997";
             camBtnLabel.style.color = "white";
             camBtnLabel.style.cursor = "pointer";
-            camBtnLabel.innerText = "📸 Take Photo or Upload Image";
-            imgInput.disabled = false;
+            camBtnLabel.innerText = "📸 Take Photo";
+            camInput.disabled = false;
+
+            // Unlock Upload
+            uploadBtnLabel.style.background = "#007bff";
+            uploadBtnLabel.style.color = "white";
+            uploadBtnLabel.style.cursor = "pointer";
+            uploadBtnLabel.innerText = "📁 Select File";
+            uploadInput.disabled = false;
         } else {
+            // Lock Camera
             camBtnLabel.style.background = "#e2e8f0";
             camBtnLabel.style.color = "#94a3b8";
             camBtnLabel.style.cursor = "not-allowed";
-            camBtnLabel.innerText = "🔒 Select Location to Unlock Scanner";
-            imgInput.disabled = true;
+            camBtnLabel.innerText = "🔒 Location Required";
+            camInput.disabled = true;
+
+            // Lock Upload
+            uploadBtnLabel.style.background = "#e2e8f0";
+            uploadBtnLabel.style.color = "#94a3b8";
+            uploadBtnLabel.style.cursor = "not-allowed";
+            uploadBtnLabel.innerText = "🔒 Location Required";
+            uploadInput.disabled = true;
         }
     }
 
@@ -140,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
     
     document.getElementById('btn-save-settings').addEventListener('click', () => {
-        // Automatically strip whitespace and force URL protocol to lowercase
         let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
         let cleanKey = sbKeyInput.value.trim();
         let cleanGemini = apiKeyInput.value.trim();
@@ -172,41 +191,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // D. CAMERA PROCESSING
-    if (imgInput) {
-        imgInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            document.getElementById('loading-status').classList.remove('hidden');
-            const img = new Image();
-            img.onload = async () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 800; canvas.height = img.height * (800 / img.width);
-                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
-                const detectedItems = await scanContainerWithAI(base64Data);
-                document.getElementById('loading-status').classList.add('hidden');
-                
-                detectedItems.forEach(item => {
-                    let thumbHtml = "", base64Str = "";
-                    if (item.box_2d) {
-                        const c = document.createElement('canvas'), ctx = c.getContext('2d');
-                        const ymin = (item.box_2d[0]/1000)*img.height, xmin = (item.box_2d[1]/1000)*img.width;
-                        const w = (item.box_2d[3]-item.box_2d[1])/1000*img.width, h = (item.box_2d[2]-item.box_2d[0])/1000*img.height;
-                        c.width = w; c.height = h;
-                        ctx.drawImage(img, xmin, ymin, w, h, 0, 0, w, h);
-                        base64Str = c.toDataURL('image/jpeg', 0.6);
-                        thumbHtml = `<img src="${base64Str}" style="width:50px; height:50px; border-radius:4px; object-fit:cover;">`;
-                    }
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td><input type="checkbox" class="item-confirm" checked></td><td>${thumbHtml}<input type="hidden" class="item-img-base64" value="${base64Str}"></td><td><input type="text" class="item-title" value="${item.title}" style="width:100%;"></td><td><input type="text" class="item-desc" value="${item.description}" style="width:100%;"></td>`;
-                    document.getElementById('verification-table-body').appendChild(row);
-                });
-                document.getElementById('verification-area').classList.remove('hidden');
-            };
-            img.src = URL.createObjectURL(file);
-        });
-    }
+    // D. CAMERA PROCESSING (ENHANCEMENT 4: Unified handler for both inputs)
+    const handleImageSelection = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        document.getElementById('loading-status').classList.remove('hidden');
+        const img = new Image();
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 800; canvas.height = img.height * (800 / img.width);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
+            const detectedItems = await scanContainerWithAI(base64Data);
+            document.getElementById('loading-status').classList.add('hidden');
+            
+            document.getElementById('verification-table-body').innerHTML = ""; // Clear old results
+            
+            // ENHANCEMENT 1: Inject index + 1 to create line numbers
+            detectedItems.forEach((item, index) => {
+                let thumbHtml = "", base64Str = "";
+                if (item.box_2d) {
+                    const c = document.createElement('canvas'), ctx = c.getContext('2d');
+                    const ymin = (item.box_2d[0]/1000)*img.height, xmin = (item.box_2d[1]/1000)*img.width;
+                    const w = (item.box_2d[3]-item.box_2d[1])/1000*img.width, h = (item.box_2d[2]-item.box_2d[0])/1000*img.height;
+                    c.width = w; c.height = h;
+                    ctx.drawImage(img, xmin, ymin, w, h, 0, 0, w, h);
+                    base64Str = c.toDataURL('image/jpeg', 0.6);
+                    thumbHtml = `<img src="${base64Str}" style="width:50px; height:50px; border-radius:4px; object-fit:cover;">`;
+                }
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="text-align:center; font-weight:bold; color:#6c757d;">${index + 1}</td>
+                    <td style="text-align:center;"><input type="checkbox" class="item-confirm" checked></td>
+                    <td style="text-align:center;">${thumbHtml}<input type="hidden" class="item-img-base64" value="${base64Str}"></td>
+                    <td><input type="text" class="item-title" value="${item.title}" style="width:100%; box-sizing: border-box;"></td>
+                    <td><input type="text" class="item-desc" value="${item.description}" style="width:100%; box-sizing: border-box;"></td>`;
+                document.getElementById('verification-table-body').appendChild(row);
+            });
+            document.getElementById('verification-area').classList.remove('hidden');
+        };
+        img.src = URL.createObjectURL(file);
+        e.target.value = ""; // Reset input so same file can be re-selected if needed
+    };
+
+    if (camInput) camInput.addEventListener('change', handleImageSelection);
+    if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
     // E. SAVE BULK
     document.getElementById('btn-save-bulk').addEventListener('click', async () => {
@@ -249,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (error) {
             alert("Database Error: " + error.message);
         } else { 
-            alert("Success!"); 
+            // ENHANCEMENT 2: Dynamic Success Count
+            alert(`Successfully saved ${toInsert.length} item(s)!`); 
             document.getElementById('verification-area').classList.add('hidden');
             document.getElementById('verification-table-body').innerHTML = ""; 
             
@@ -271,10 +301,18 @@ let currentInventory = [];
 
 async function loadInventory() {
     if (!mySupabaseDb) return;
+    
+    // ENHANCEMENT 3: Show Loading Animation
+    const loadingDiv = document.getElementById('inventory-loading');
+    if(loadingDiv) loadingDiv.classList.remove('hidden');
+
     const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
     currentInventory = data || [];
     refreshDynamicLocations(); 
     window.renderInventoryTable();
+
+    // ENHANCEMENT 3: Hide Loading Animation once finished
+    if(loadingDiv) loadingDiv.classList.add('hidden');
 }
 
 window.renderInventoryTable = function() {
