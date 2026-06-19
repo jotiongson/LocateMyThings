@@ -209,3 +209,37 @@ input[type="checkbox"] {
     color: var(--accent);
     background: none;
 }
+
+/* ==========================================================================
+   LOADING ANIMATION (Dancing Dots)
+   ========================================================================== */
+.loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* Space between dots */
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.loader-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #007bff; /* Matches your app's blue accent color */
+    border-radius: 50%;
+    animation: bounce 0.5s alternate infinite ease-in-out;
+}
+
+/* Delay the 2nd and 3rd dots so they cascade */
+.loader-dot:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.loader-dot:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes bounce {
+    0% { transform: translateY(0); opacity: 0.5; }
+    100% { transform: translateY(-12px); opacity: 1; }
+}
