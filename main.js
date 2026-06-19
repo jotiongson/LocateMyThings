@@ -1,224 +1,398 @@
-// ==========================================
-// 1. SUPABASE INITIALIZATION
-// ==========================================
-const SUPABASE_URL = "https://etmogzjhmvuwpvbuwryh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0bW9nempobXZ1d3B2YnV3cnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDU2OTUsImV4cCI6MjA5NzI4MTY5NX0.uu8C3xdciivAPYX5EYspOskyDIka7cWNB6jsEIrwWrw";
+// --- 1. ERROR PROOF INITIALIZATION ---
+let SUPABASE_URL = "";
+let SUPABASE_ANON_KEY = "";
+let GEMINI_API_KEY = "";
 
-window.mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+try {
+    SUPABASE_URL = localStorage.getItem('locate_sb_url') || "";
+    SUPABASE_ANON_KEY = localStorage.getItem('locate_sb_key') || "";
+    GEMINI_API_KEY = localStorage.getItem('locate_gemini_key') || "";
+} catch (error) { console.warn("Local storage unavailable."); }
 
-// ==========================================
-// 2. AUTHENTICATION (TIMBREBOX STYLE)
-// ==========================================
-let isSignUp = false;
+let mySupabaseDb = null; 
+if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    mySupabaseDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
-// Toggles the UI between Login and Register modes
-window.toggleAuthMode = () => {
-    isSignUp = !isSignUp;
-    document.getElementById('auth-title').innerText = isSignUp ? "Create your account" : "Welcome back";
-    document.getElementById('auth-subtitle').innerText = isSignUp ? "Start organizing your things." : "Enter your credentials to access your items.";
-    document.getElementById('auth-btn').innerText = isSignUp ? "Create Account" : "Secure Login";
-    document.getElementById('auth-toggle').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Here";
-};
+window.globalLocations = []; 
 
-// Handles the actual authentication call
-window.handleAuth = async () => {
-    const email = document.getElementById('auth-email').value.trim();
-    const password = document.getElementById('auth-password').value;
-    const authBtn = document.getElementById('auth-btn');
-
-    if (!email || !password) {
-        alert("Please enter both your email and password.");
-        return;
-    }
-
-    authBtn.innerText = "Processing...";
-    authBtn.disabled = true;
-
-    if (isSignUp) {
-        // Register a new user
-        const { data, error } = await window.mySupabaseDb.auth.signUp({
-            email: email,
-            password: password,
-        });
-        
-        if (error) {
-            alert("Registration Error: " + error.message);
-        } else {
-            alert("Success! Account created. You can now log in.");
-            window.toggleAuthMode(); // Flip back to login view automatically
-        }
-    } else {
-        // Log in an existing user
-        const { data, error } = await window.mySupabaseDb.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
-        
-        if (error) {
-            alert("Login Error: " + error.message);
-        }
-    }
-
-    authBtn.innerText = isSignUp ? "Create Vault" : "Unlock Vault";
-    authBtn.disabled = false;
-};
-
-window.showHome = () => {
-    alert("Navigating to Home...");
-    // If you have a 'home-view' div in your HTML, show it here
-};
-
-window.showManage = () => {
-    alert("Navigating to Manage Items...");
-    // If you have a 'manage-view' div in your HTML, show it here
-};
-
-// Handle logging out
-window.logout = async () => {
-    await window.mySupabaseDb.auth.signOut();
-};
-
-// Automatically show/hide screens based on login status
-window.mySupabaseDb.auth.onAuthStateChange((event, session) => {
-    if (session) {
-        // User is logged in
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('app-screen').style.display = 'block';
-    } else {
-        // User is logged out
-        document.getElementById('auth-screen').style.display = 'flex';
-        document.getElementById('app-screen').style.display = 'none';
-    }
-});
-
-
-// ==========================================
-// 3. AI SCANNER & EDGE FUNCTION
-// ==========================================
-
-// Trigger the hidden file input
-window.triggerScan = () => {
-    document.getElementById('image-input').click();
-};
-
-// Process the image when selected
-window.handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    document.getElementById('ai-loading').style.display = 'block';
-    document.getElementById('verify-section').style.display = 'none';
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        // Strip the data:image prefix to get pure base64
-        const base64Image = e.target.result.split(',')[1]; 
-        
-        // Send to Edge Function
-        const items = await scanContainerWithAI(base64Image);
-        
-        document.getElementById('ai-loading').style.display = 'none';
-        
-        if (items && (Array.isArray(items) ? items.length > 0 : items.title)) {
-            displayDetectedItems(Array.isArray(items) ? items : [items]);
-        }
-    };
-    reader.readAsDataURL(file);
-};
-
-// Secure Edge Function Call (With the fixed parsing logic)
-async function scanContainerWithAI(base64Image) {
+// --- DYNAMIC LOCATION FETCHER ---
+async function refreshDynamicLocations() {
+    if (!mySupabaseDb) return;
+    
     try {
-        const { data, error } = await window.mySupabaseDb.functions.invoke('scan-image', {
-            body: { base64Image: base64Image }
-        });
+        const { data, error } = await mySupabaseDb.from('items').select('location');
+        if (error || !data) return;
 
-        if (error) {
-            alert("Edge Function Error: " + error.message);
-            return [];
-        }
+        window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
+        
+        const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
+        
+        // Base options so you are NEVER locked out
+        const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        const baseFilter = `<option value="All">All Locations</option>`;
 
-        if (data && data.error) {
-            alert("AI Error: " + data.error.message);
-            return [];
-        }
+        const homeSelect = document.getElementById('location-select');
+        if (homeSelect) homeSelect.innerHTML = baseHome + optionsHtml;
 
-        // Return the clean JSON data provided directly by the Edge Function
-        return data; 
+        const modalSelect = document.getElementById('modal-location-select');
+        if (modalSelect) modalSelect.innerHTML = baseModal + optionsHtml;
 
-    } catch (error) {
-        alert("Real Error: " + error.message);
-        return [];
+        const filterSelect = document.getElementById('inventory-filter');
+        if (filterSelect) filterSelect.innerHTML = baseFilter + optionsHtml;
+    } catch (e) {
+        console.error("Failed to fetch locations", e);
     }
 }
 
+// --- 2. AI SCANNER FUNCTION ---
+async function scanContainerWithAI(base64Image) {
+    if (!GEMINI_API_KEY) {
+        alert("Please save your Gemini API Key in the Settings tab first!");
+        return [];
+    }
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
 
-// ==========================================
-// 4. UI INTERACTION & SAVING
-// ==========================================
+    const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] };
 
-// Renders the AI results into the HTML list
-window.displayDetectedItems = (items) => {
-    const list = document.getElementById('detected-items-list');
-    list.innerHTML = ''; // Clear previous items
+    try {
+        const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (result.error) { alert("AI Error: " + result.error.message); return []; }
 
-    items.forEach((item, index) => {
-        const title = item.title || item.name || 'Detected Item';
-        const desc = item.description || '';
+        let rawText = result.candidates[0].content.parts[0].text.trim();
+        if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
+        return JSON.parse(rawText); 
+    } catch (error) { alert("Failed to parse AI response."); return []; }
+}
+
+// --- 3. UI INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+
+    if (SUPABASE_URL && GEMINI_API_KEY) {
+        refreshDynamicLocations();
+    }
+
+    // A. TIMBREBOX UI LOCK/UNLOCK LOGIC (HYBRID SYSTEM)
+    const locSelect = document.getElementById('location-select');
+    const newLocInput = document.getElementById('new-location-input-home');
+    const camBtnLabel = document.getElementById('camera-btn-label');
+    const imgInput = document.getElementById('image-input');
+
+    function checkHomeUnlockStatus() {
+        if(!locSelect || !newLocInput || !camBtnLabel || !imgInput) return;
         
-        const div = document.createElement('div');
-        div.style.marginBottom = '1rem';
-        div.style.display = 'flex';
-        div.style.gap = '0.5rem';
-        div.style.alignItems = 'center';
-        
-        div.innerHTML = `
-            <input type="checkbox" id="keep-${index}" checked style="transform: scale(1.2);">
-            <input type="text" id="title-${index}" value="${title}" style="flex: 1; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem;">
-            <input type="text" id="desc-${index}" value="${desc}" style="flex: 2; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.25rem;">
-        `;
-        list.appendChild(div);
-    });
-    
-    // Store the count so saveItems knows how many inputs to look for
-    window.currentDetectedItemsCount = items.length;
-    document.getElementById('verify-section').style.display = 'block';
-};
+        let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
 
-// Gather verified items and save them to the database
-window.saveItems = async () => {
-    const locationId = document.getElementById('location-select').value;
-    const containerTitle = document.getElementById('item-title').value;
-
-    const itemsToSave = [];
-    const count = window.currentDetectedItemsCount || 0;
-
-    for (let i = 0; i < count; i++) {
-        const keep = document.getElementById(`keep-${i}`).checked;
-        if (keep) {
-            const title = document.getElementById(`title-${i}`).value;
-            const desc = document.getElementById(`desc-${i}`).value;
-            itemsToSave.push({ title, description: desc }); // Add locationId or containerId here as needed
+        if (finalVal !== "") {
+            camBtnLabel.style.background = "#20c997";
+            camBtnLabel.style.color = "white";
+            camBtnLabel.style.cursor = "pointer";
+            camBtnLabel.innerText = "📸 Take Photo or Upload Image";
+            imgInput.disabled = false;
+        } else {
+            camBtnLabel.style.background = "#e2e8f0";
+            camBtnLabel.style.color = "#94a3b8";
+            camBtnLabel.style.cursor = "not-allowed";
+            camBtnLabel.innerText = "🔒 Select Location to Unlock Scanner";
+            imgInput.disabled = true;
         }
     }
 
-    if (itemsToSave.length === 0) {
-        alert("No items selected to save.");
-        return;
+    if (locSelect) {
+        locSelect.addEventListener('change', () => {
+            if (locSelect.value === "NEW") {
+                newLocInput.classList.remove('hidden');
+                newLocInput.focus();
+            } else {
+                newLocInput.classList.add('hidden');
+                newLocInput.value = ""; 
+            }
+            checkHomeUnlockStatus();
+        });
     }
-
-    // NOTE: Replace 'your_table_name' with your actual Supabase table
-    /*
-    const { error } = await window.mySupabaseDb.from('your_table_name').insert(itemsToSave);
-    if (error) {
-        alert("Error saving items: " + error.message);
-        return;
-    }
-    */
-
-    alert(`Successfully saved ${itemsToSave.length} items!`);
     
-    // Reset UI
-    document.getElementById('verify-section').style.display = 'none';
-    document.getElementById('detected-items-list').innerHTML = '';
+    if (newLocInput) newLocInput.addEventListener('input', checkHomeUnlockStatus);
+
+    // Modal UI Toggle Logic
+    const modalSelect = document.getElementById('modal-location-select');
+    const modalInput = document.getElementById('modal-location-input');
+    if (modalSelect && modalInput) {
+        modalSelect.addEventListener('change', () => {
+            if (modalSelect.value === "NEW") {
+                modalInput.classList.remove('hidden');
+                modalInput.focus();
+            } else {
+                modalInput.classList.add('hidden');
+                modalInput.value = "";
+            }
+        });
+    }
+
+    // B. SETTINGS
+    const sbUrlInput = document.getElementById('sb-url-input');
+    const sbKeyInput = document.getElementById('sb-key-input');
+    const apiKeyInput = document.getElementById('api-key-input');
+    if(sbUrlInput) sbUrlInput.value = SUPABASE_URL;
+    if(sbKeyInput) sbKeyInput.value = SUPABASE_ANON_KEY;
+    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
+    
+    document.getElementById('btn-save-settings').addEventListener('click', () => {
+        // Automatically strip whitespace and force URL protocol to lowercase
+        let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
+        let cleanKey = sbKeyInput.value.trim();
+        let cleanGemini = apiKeyInput.value.trim();
+    
+        localStorage.setItem('locate_sb_url', cleanUrl);
+        localStorage.setItem('locate_sb_key', cleanKey);
+        localStorage.setItem('locate_gemini_key', cleanGemini);
+        
+        location.reload();
+    });
+
+    // C. NAVIGATION
+    const navItems = document.querySelectorAll('.nav-item');
+    const viewPanels = document.querySelectorAll('.view-panel');
+
+    navItems.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const currentButton = e.currentTarget;
+            const target = currentButton.getAttribute('data-target');
+            
+            navItems.forEach(nav => nav.classList.remove('active'));
+            currentButton.classList.add('active');
+
+            viewPanels.forEach(p => p.classList.add('hidden'));
+            const targetElement = document.getElementById(target);
+            if(targetElement) targetElement.classList.remove('hidden');
+            
+            if (target === 'screen-manage') loadInventory();
+        });
+    });
+
+    // D. CAMERA PROCESSING
+    if (imgInput) {
+        imgInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('loading-status').classList.remove('hidden');
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 800; canvas.height = img.height * (800 / img.width);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
+                const detectedItems = await scanContainerWithAI(base64Data);
+                document.getElementById('loading-status').classList.add('hidden');
+                
+                detectedItems.forEach(item => {
+                    let thumbHtml = "", base64Str = "";
+                    if (item.box_2d) {
+                        const c = document.createElement('canvas'), ctx = c.getContext('2d');
+                        const ymin = (item.box_2d[0]/1000)*img.height, xmin = (item.box_2d[1]/1000)*img.width;
+                        const w = (item.box_2d[3]-item.box_2d[1])/1000*img.width, h = (item.box_2d[2]-item.box_2d[0])/1000*img.height;
+                        c.width = w; c.height = h;
+                        ctx.drawImage(img, xmin, ymin, w, h, 0, 0, w, h);
+                        base64Str = c.toDataURL('image/jpeg', 0.6);
+                        thumbHtml = `<img src="${base64Str}" style="width:50px; height:50px; border-radius:4px; object-fit:cover;">`;
+                    }
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td><input type="checkbox" class="item-confirm" checked></td><td>${thumbHtml}<input type="hidden" class="item-img-base64" value="${base64Str}"></td><td><input type="text" class="item-title" value="${item.title}" style="width:100%;"></td><td><input type="text" class="item-desc" value="${item.description}" style="width:100%;"></td>`;
+                    document.getElementById('verification-table-body').appendChild(row);
+                });
+                document.getElementById('verification-area').classList.remove('hidden');
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    // E. SAVE BULK
+    document.getElementById('btn-save-bulk').addEventListener('click', async () => {
+        if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+
+        const selectElement = document.getElementById('location-select');
+        let targetLocation = selectElement.value;
+        
+        if (targetLocation === "NEW") {
+            targetLocation = document.getElementById('new-location-input-home').value.trim();
+        }
+
+        if (!targetLocation) {
+            alert("Please enter or select a location before saving.");
+            return;
+        }
+
+        const rows = document.querySelectorAll('#verification-table-body tr');
+        let toInsert = [];
+        rows.forEach(row => {
+            if (row.querySelector('.item-confirm').checked) {
+                toInsert.push({ 
+                    title: row.querySelector('.item-title').value,
+                    description: row.querySelector('.item-desc').value,
+                    location: targetLocation,
+                    image_base64: row.querySelector('.item-img-base64').value
+                });
+            }
+        });
+
+        if (toInsert.length === 0) {
+            alert("No items selected to save.");
+            return;
+        }
+
+        document.getElementById('btn-save-bulk').innerText = "⏳ Saving...";
+
+        const { error } = await mySupabaseDb.from('items').insert(toInsert);
+        
+        if (error) {
+            alert("Database Error: " + error.message);
+        } else { 
+            alert("Success!"); 
+            document.getElementById('verification-area').classList.add('hidden');
+            document.getElementById('verification-table-body').innerHTML = ""; 
+            
+            // Reset UI
+            selectElement.value = "";
+            document.getElementById('new-location-input-home').classList.add('hidden');
+            document.getElementById('new-location-input-home').value = "";
+            selectElement.dispatchEvent(new Event('change'));
+            
+            refreshDynamicLocations();
+        }
+        
+        document.getElementById('btn-save-bulk').innerText = "💾 Save Confirmed Items to Database";
+    });
+});
+
+// --- 4. INVENTORY MANAGEMENT & MODAL ---
+let currentInventory = [];
+
+async function loadInventory() {
+    if (!mySupabaseDb) return;
+    const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
+    currentInventory = data || [];
+    refreshDynamicLocations(); 
+    window.renderInventoryTable();
+}
+
+window.renderInventoryTable = function() {
+    const tbody = document.getElementById('items-table-body');
+    if(!tbody) return;
+
+    const loc = document.getElementById('inventory-filter').value;
+    const search = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
+    
+    tbody.innerHTML = '';
+    
+    const filteredData = currentInventory.filter(item => 
+        (loc === "All" || item.location === loc) && 
+        (item.title.toLowerCase().includes(search) || item.description.toLowerCase().includes(search))
+    );
+
+    const countSpan = document.getElementById('inventory-count');
+    if (countSpan) countSpan.innerText = `${filteredData.length} Item${filteredData.length !== 1 ? 's' : ''}`;
+
+    const btnBulkDelete = document.getElementById('btn-bulk-delete');
+    if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
+    
+    const selectAllCb = document.getElementById('select-all-cb');
+    if (selectAllCb) selectAllCb.checked = false;
+
+    filteredData.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = "pointer";
+        
+        tr.onclick = (e) => {
+            if (e.target.tagName.toLowerCase() === 'input') return;
+            openModal(item);
+        };
+
+        tr.innerHTML = `
+            <td style="text-align: center;">
+                <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
+            </td>
+            <td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;"></td>
+            <td style="font-weight: bold;">${item.title}</td>
+            <td style="color: #666;">${item.description.substring(0, 25)}...</td>
+            <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// BULK DELETE
+window.toggleSelectAll = function() {
+    const masterCb = document.getElementById('select-all-cb');
+    const rowCbs = document.querySelectorAll('.row-cb');
+    rowCbs.forEach(cb => cb.checked = masterCb.checked);
+    checkBulkDeleteStatus();
+}
+
+window.checkBulkDeleteStatus = function() {
+    const anyChecked = document.querySelector('.row-cb:checked') !== null;
+    const btn = document.getElementById('btn-bulk-delete');
+    if (anyChecked) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
+}
+
+window.bulkDeleteItems = async function() {
+    const checkedBoxes = document.querySelectorAll('.row-cb:checked');
+    if (checkedBoxes.length === 0) return;
+    if (!confirm(`Are you sure you want to permanently delete ${checkedBoxes.length} item(s)?`)) return;
+
+    const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+    try {
+        const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
+        if (error) throw error;
+        alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
+        
+        loadInventory(); 
+    } catch (err) {
+        alert("Error deleting items: " + err.message);
+    }
+}
+
+// MODAL
+function openModal(item) {
+    document.getElementById('modal-img').src = item.image_base64 || '';
+    document.getElementById('modal-title').innerText = item.title;
+    document.getElementById('modal-desc').innerText = item.description;
+    window.activeItemId = item.id;
+
+    const modalSelect = document.getElementById('modal-location-select');
+    const modalInput = document.getElementById('modal-location-input');
+    
+    if (modalSelect) {
+        modalSelect.value = item.location;
+        modalInput.classList.add('hidden');
+        modalInput.value = "";
+    }
+
+    document.getElementById('item-modal').classList.remove('hidden');
+}
+
+window.saveModalChanges = async () => {
+    if (!mySupabaseDb) return;
+    
+    const selectElement = document.getElementById('modal-location-select');
+    let locInput = selectElement.value;
+    
+    if (locInput === "NEW") {
+        locInput = document.getElementById('modal-location-input').value.trim();
+    }
+
+    if (!locInput) return alert("Location cannot be empty.");
+
+    const { error } = await mySupabaseDb.from('items').update({ location: locInput }).eq('id', window.activeItemId);
+    
+    if (error) alert("Error: " + error.message); 
+    else {
+        document.getElementById('item-modal').classList.add('hidden');
+        loadInventory(); 
+    }
 };
+
+window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
