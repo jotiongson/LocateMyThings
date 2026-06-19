@@ -299,6 +299,10 @@ let currentInventory = [];
 async function loadInventory() {
     if (!mySupabaseDb) return;
     
+    // PERFECT UX: Clear the old list instantly before showing the animation
+    const tbody = document.getElementById('items-table-body');
+    if (tbody) tbody.innerHTML = '';
+    
     const loadingDiv = document.getElementById('inventory-loading');
     if(loadingDiv) loadingDiv.classList.remove('hidden');
 
@@ -369,6 +373,7 @@ window.checkBulkDeleteStatus = function() {
     else btn.classList.add('hidden');
 }
 
+// PERFECT UX: Better Deletion Sequencing
 window.bulkDeleteItems = async function() {
     const checkedBoxes = document.querySelectorAll('.row-cb:checked');
     if (checkedBoxes.length === 0) return;
@@ -377,24 +382,33 @@ window.bulkDeleteItems = async function() {
     const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
     try {
+        // 1. Show animation & wipe list instantly to freeze UI
+        const loadingDiv = document.getElementById('inventory-loading');
+        if(loadingDiv) loadingDiv.classList.remove('hidden');
+        const tbody = document.getElementById('items-table-body');
+        if (tbody) tbody.innerHTML = '';
+
+        // 2. Perform the database delete silently
         const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
         if (error) throw error;
-        alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
         
-        loadInventory(); 
+        // 3. Wait for the list to completely refresh (this turns off the animation)
+        await loadInventory(); 
+        
+        // 4. Show success popup ONLY after everything is done
+        alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
+
     } catch (err) {
         alert("Error deleting items: " + err.message);
+        const loadingDiv = document.getElementById('inventory-loading');
+        if(loadingDiv) loadingDiv.classList.add('hidden');
     }
 }
 
-// MODAL ENHANCEMENTS: Populate text inputs when opening
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
-    
-    // Set the input fields with the existing data
     document.getElementById('modal-title-input').value = item.title;
     document.getElementById('modal-desc-input').value = item.description;
-    
     window.activeItemId = item.id;
 
     const modalSelect = document.getElementById('modal-location-select');
@@ -409,7 +423,6 @@ function openModal(item) {
     document.getElementById('item-modal').classList.remove('hidden');
 }
 
-// MODAL ENHANCEMENTS: Grab the new title and description to save
 window.saveModalChanges = async () => {
     if (!mySupabaseDb) return;
     
@@ -440,3 +453,56 @@ window.saveModalChanges = async () => {
 };
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
+
+
+// --- 5. AUTHENTICATION & ACCOUNTS ---
+let isSignUp = false;
+window.toggleAuthMode = () => {
+    isSignUp = !isSignUp;
+    document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Welcome back";
+    document.getElementById('auth-btn').innerText = isSignUp ? "Register" : "Secure Login";
+    document.getElementById('auth-toggle').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Here";
+};
+
+window.handleAuth = async () => {
+    if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) return alert("Please enter both email and password.");
+    
+    document.getElementById('auth-btn').innerText = "⏳ Processing...";
+    
+    const { error } = isSignUp 
+        ? await mySupabaseDb.auth.signUp({email, password}) 
+        : await mySupabaseDb.auth.signInWithPassword({email, password});
+        
+    if (error) {
+        alert(error.message);
+        document.getElementById('auth-btn').innerText = isSignUp ? "Register" : "Secure Login";
+    } else {
+        if (isSignUp) alert("Registration successful!");
+        document.getElementById('auth-email').value = '';
+        document.getElementById('auth-password').value = '';
+    }
+};
+
+window.logout = async () => { 
+    if (!mySupabaseDb) return;
+    await mySupabaseDb.auth.signOut(); 
+    location.reload(); 
+};
+
+// Auto-check login status to show/hide the app
+if (mySupabaseDb) {
+    mySupabaseDb.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            // User is logged in: Hide login screen, show app
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-content').classList.remove('hidden');
+        } else {
+            // User is logged out: Show login screen, hide app
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('app-content').classList.add('hidden');
+        }
+    });
+}
