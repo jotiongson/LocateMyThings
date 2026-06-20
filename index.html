@@ -42,12 +42,12 @@
     <main id="app-content" class="hidden">
         
         <section id="screen-home" class="view-panel">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e5ea;">
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e5e5ea;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <img src="icon.png" alt="Logo" style="width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                     <h1 style="margin: 0; font-size: 1.5rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
                 </div>
-                <div id="home-user-display" style="font-size: 0.85rem; color: #6c757d; background: #f8f9fa; padding: 5px 10px; border-radius: 20px; border: 1px solid #dee2e6;">
+                <div id="home-user-display" style="font-size: 0.85rem; color: #495057; background: #e2e8f0; padding: 4px 12px; border-radius: 12px; word-break: break-all;">
                     👤 Loading...
                 </div>
             </div>
@@ -186,8 +186,13 @@
                     --
                 </div>
                 
-                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Account ID:</label>
-                <div id="account-id-display" style="font-size: 0.85rem; color: #6c757d; font-family: monospace; word-break: break-all;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Account Created:</label>
+                <div id="account-created-display" style="font-size: 0.9rem; color: #6c757d; margin-bottom: 15px;">
+                    --
+                </div>
+
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Last Sign In:</label>
+                <div id="account-last-signin-display" style="font-size: 0.9rem; color: #6c757d;">
                     --
                 </div>
             </div>
