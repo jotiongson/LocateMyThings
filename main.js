@@ -517,17 +517,24 @@ if (mySupabaseDb) {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-content').classList.remove('hidden');
             
-            // NEW: Extract user details from the session and update the UI
+            // Extract user details
             const userEmail = session.user.email;
-            const userId = session.user.id;
             
+            // Format Supabase timestamps into readable local dates
+            const createdDate = new Date(session.user.created_at).toLocaleString();
+            const lastSignInDate = new Date(session.user.last_sign_in_at).toLocaleString();
+            
+            // Connect to HTML elements
             const homeDisplay = document.getElementById('home-user-display');
             const accountEmailDisplay = document.getElementById('account-email-display');
-            const accountIdDisplay = document.getElementById('account-id-display');
+            const accountCreatedDisplay = document.getElementById('account-created-display');
+            const accountLastSigninDisplay = document.getElementById('account-last-signin-display');
             
+            // Inject the data
             if (homeDisplay) homeDisplay.innerText = `👤 ${userEmail}`;
             if (accountEmailDisplay) accountEmailDisplay.innerText = userEmail;
-            if (accountIdDisplay) accountIdDisplay.innerText = userId;
+            if (accountCreatedDisplay) accountCreatedDisplay.innerText = createdDate;
+            if (accountLastSigninDisplay) accountLastSigninDisplay.innerText = lastSignInDate;
             
         } else {
             // User is logged out: Show login screen, hide app
