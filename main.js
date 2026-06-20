@@ -516,6 +516,19 @@ if (mySupabaseDb) {
             // User is logged in: Hide login screen, show app
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-content').classList.remove('hidden');
+            
+            // NEW: Extract user details from the session and update the UI
+            const userEmail = session.user.email;
+            const userId = session.user.id;
+            
+            const homeDisplay = document.getElementById('home-user-display');
+            const accountEmailDisplay = document.getElementById('account-email-display');
+            const accountIdDisplay = document.getElementById('account-id-display');
+            
+            if (homeDisplay) homeDisplay.innerText = `👤 ${userEmail}`;
+            if (accountEmailDisplay) accountEmailDisplay.innerText = userEmail;
+            if (accountIdDisplay) accountIdDisplay.innerText = userId;
+            
         } else {
             // User is logged out: Show login screen, hide app
             document.getElementById('auth-screen').style.display = 'flex';
