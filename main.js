@@ -32,14 +32,31 @@ async function refreshDynamicLocations() {
         const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
         const baseFilter = `<option value="All">All Locations</option>`;
 
+        // 1. CAPTURE EXISTING VALUES BEFORE REWRITING HTML
         const homeSelect = document.getElementById('location-select');
-        if (homeSelect) homeSelect.innerHTML = baseHome + optionsHtml;
-
         const modalSelect = document.getElementById('modal-location-select');
-        if (modalSelect) modalSelect.innerHTML = baseModal + optionsHtml;
-
         const filterSelect = document.getElementById('inventory-filter');
-        if (filterSelect) filterSelect.innerHTML = baseFilter + optionsHtml;
+
+        const currentHomeVal = homeSelect ? homeSelect.value : "";
+        const currentModalVal = modalSelect ? modalSelect.value : "";
+        const currentFilterVal = filterSelect ? filterSelect.value : "All";
+
+        // 2. REWRITE HTML AND RESTORE PREVIOUS VALUES
+        if (homeSelect) {
+            homeSelect.innerHTML = baseHome + optionsHtml;
+            if (currentHomeVal) homeSelect.value = currentHomeVal;
+        }
+
+        if (modalSelect) {
+            modalSelect.innerHTML = baseModal + optionsHtml;
+            if (currentModalVal) modalSelect.value = currentModalVal;
+        }
+
+        if (filterSelect) {
+            filterSelect.innerHTML = baseFilter + optionsHtml;
+            // Restore the filter choice (e.g. "Garage Table Drawer 3")
+            if (currentFilterVal) filterSelect.value = currentFilterVal;
+        }
     } catch (e) {
         console.error("Failed to fetch locations", e);
     }
