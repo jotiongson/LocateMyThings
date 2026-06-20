@@ -36,17 +36,20 @@
             
             <button id="auth-btn" style="width:100%; padding:15px; background:#007bff; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;" onclick="handleAuth()">Secure Login</button>
             <button onclick="toggleAuthMode()" id="auth-toggle" style="background:none; color:#007bff; border:none; width:100%; margin-top:15px; font-weight:bold; cursor:pointer;">Don't have an account? Register Here</button>
-            
-            <button onclick="document.getElementById('auth-screen').style.display='none'; document.getElementById('app-content').classList.remove('hidden'); document.querySelector('[data-target=\'screen-settings\']').click();" style="background:none; color:#6c757d; border:none; width:100%; margin-top:25px; font-size: 0.85rem; text-decoration: underline; cursor:pointer;">⚙️ Setup Database Connection</button>
         </div>
     </div>
 
     <main id="app-content" class="hidden">
         
         <section id="screen-home" class="view-panel">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e5ea;">
-                <img src="icon.png" alt="Logo" style="width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                <h1 style="margin: 0; font-size: 1.5rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e5ea;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="icon.png" alt="Logo" style="width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h1 style="margin: 0; font-size: 1.5rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+                </div>
+                <div id="home-user-display" style="font-size: 0.85rem; color: #6c757d; background: #f8f9fa; padding: 5px 10px; border-radius: 20px; border: 1px solid #dee2e6;">
+                    👤 Loading...
+                </div>
             </div>
             
             <div style="border: 1px solid #dee2e6; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
@@ -171,23 +174,25 @@
             </div>
         </section>
 
-        <section id="screen-settings" class="view-panel hidden">
-            <h2>Application Settings</h2>
-            <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
-                Your API keys are stored securely in this browser's local memory.
+        <section id="screen-account" class="view-panel hidden">
+            <h2>Account Details</h2>
+            <p style="color: gray; font-size: 0.85rem; margin-bottom: 20px;">
+                Manage your active session and view your secure identifier.
             </p>
 
-            <label style="font-weight: bold;">Supabase Project URL:</label>
-            <input type="text" id="sb-url-input" placeholder="https://xyz.supabase.co" autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 25px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Logged in as:</label>
+                <div id="account-email-display" style="font-size: 1.1rem; color: #007bff; word-break: break-all; margin-bottom: 15px;">
+                    --
+                </div>
+                
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Account ID:</label>
+                <div id="account-id-display" style="font-size: 0.85rem; color: #6c757d; font-family: monospace; word-break: break-all;">
+                    --
+                </div>
+            </div>
             
-            <label style="font-weight: bold;">Supabase Anon Key:</label>
-            <input type="password" id="sb-key-input" placeholder="eyJh..." autocomplete="off" style="width: 100%; margin: 5px 0 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-
-            <label style="font-weight: bold;">Gemini API Key:</label>
-            <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off" style="width: 100%; margin: 5px 0 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            
-            <button id="btn-save-settings" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">💾 Save Configuration</button>
-            <button onclick="logout()" style="width: 100%; padding: 15px; background: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 20px;">🚪 Log Out / Switch Account</button>
+            <button onclick="logout()" style="width: 100%; padding: 15px; background: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">🚪 Secure Log Out</button>
         </section>
 
     </main>
@@ -199,8 +204,8 @@
         <button class="nav-item" data-target="screen-manage">
             <span class="icon">📦</span><span class="label">Manage</span>
         </button>
-        <button class="nav-item" data-target="screen-settings">
-            <span class="icon">⚙️</span><span class="label">Settings</span>
+        <button class="nav-item" data-target="screen-account">
+            <span class="icon">👤</span><span class="label">Account</span>
         </button>
     </nav>
 
