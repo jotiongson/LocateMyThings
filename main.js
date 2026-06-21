@@ -53,7 +53,7 @@ window.globalLocations = [];
 // ==========================================================================
 // 2. ADMIN TELEMETRY & QUOTA ENFORCEMENT
 // ==========================================================================
-const ADMIN_EMAILS = ["your.email@example.com"]; // Replace with your actual email
+const ADMIN_EMAILS = ["josephtiongson@hotmail.com"]; 
 
 let GEMINI_DAILY_LIMIT = 1425; 
 let SUPABASE_MONTHLY_LIMIT = 47500; 
