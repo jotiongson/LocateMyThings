@@ -1,3 +1,36 @@
+// --- 0. MAGIC LINK ONBOARDING ---
+const urlParams = new URLSearchParams(window.location.search);
+const setupUrl = urlParams.get('sb_url');
+const setupKey = urlParams.get('sb_key');
+const setupGemini = urlParams.get('gemini_key');
+
+// Helper function to reverse only the last 5 characters back to normal
+const reverseLastFive = (str) => {
+    if (!str || str.length < 5) return str;
+    const core = str.slice(0, -5);
+    const tail = str.slice(-5).split('').reverse().join('');
+    return core + tail;
+};
+
+if (setupUrl && setupKey && setupGemini) {
+    try {
+        // 1. Flip the last 5 characters back to their correct order
+        const finalKey = reverseLastFive(setupKey);
+        const finalGemini = reverseLastFive(setupGemini);
+
+        // 2. Save the true, working keys into local storage
+        localStorage.setItem('locate_sb_url', setupUrl);
+        localStorage.setItem('locate_sb_key', finalKey);
+        localStorage.setItem('locate_gemini_key', finalGemini);
+        
+        // 3. Clean up the URL so the keys immediately disappear from the address bar
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    } catch (e) {
+        console.error("Invalid magic link format.");
+    }
+}
+
 // --- 1. ERROR PROOF INITIALIZATION ---
 let SUPABASE_URL = "";
 let SUPABASE_ANON_KEY = "";
@@ -159,29 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalInput.classList.add('hidden');
                 modalInput.value = "";
             }
-        });
-    }
-
-    // B. SETTINGS
-    const sbUrlInput = document.getElementById('sb-url-input');
-    const sbKeyInput = document.getElementById('sb-key-input');
-    const apiKeyInput = document.getElementById('api-key-input');
-    if(sbUrlInput) sbUrlInput.value = SUPABASE_URL;
-    if(sbKeyInput) sbKeyInput.value = SUPABASE_ANON_KEY;
-    if(apiKeyInput) apiKeyInput.value = GEMINI_API_KEY;
-    
-    const btnSaveSettings = document.getElementById('btn-save-settings');
-    if (btnSaveSettings) {
-        btnSaveSettings.addEventListener('click', () => {
-            let cleanUrl = sbUrlInput.value.trim().replace(/^HTTPS:/i, 'https:').replace(/^HTTP:/i, 'http:');
-            let cleanKey = sbKeyInput.value.trim();
-            let cleanGemini = apiKeyInput.value.trim();
-        
-            localStorage.setItem('locate_sb_url', cleanUrl);
-            localStorage.setItem('locate_sb_key', cleanKey);
-            localStorage.setItem('locate_gemini_key', cleanGemini);
-            
-            location.reload();
         });
     }
 
