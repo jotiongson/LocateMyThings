@@ -1,4 +1,6 @@
-// --- 0. MAGIC LINK ONBOARDING ---
+// ==========================================================================
+// 0. MAGIC LINK ONBOARDING (Reverse Last 5)
+// ==========================================================================
 const urlParams = new URLSearchParams(window.location.search);
 const setupUrl = urlParams.get('sb_url');
 const setupKey = urlParams.get('sb_key');
@@ -14,16 +16,13 @@ const reverseLastFive = (str) => {
 
 if (setupUrl && setupKey && setupGemini) {
     try {
-        // 1. Flip the last 5 characters back to their correct order
         const finalKey = reverseLastFive(setupKey);
         const finalGemini = reverseLastFive(setupGemini);
 
-        // 2. Save the true, working keys into local storage
         localStorage.setItem('locate_sb_url', setupUrl);
         localStorage.setItem('locate_sb_key', finalKey);
         localStorage.setItem('locate_gemini_key', finalGemini);
         
-        // 3. Clean up the URL so the keys immediately disappear from the address bar
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
     } catch (e) {
@@ -31,7 +30,9 @@ if (setupUrl && setupKey && setupGemini) {
     }
 }
 
-// --- 1. ERROR PROOF INITIALIZATION ---
+// ==========================================================================
+// 1. INITIALIZATION & DATABASE CONNECTION
+// ==========================================================================
 let SUPABASE_URL = "";
 let SUPABASE_ANON_KEY = "";
 let GEMINI_API_KEY = "";
@@ -49,23 +50,68 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
 
 window.globalLocations = []; 
 
-// --- DYNAMIC LOCATION FETCHER ---
+// ==========================================================================
+// 2. ADMIN TELEMETRY & QUOTA ENFORCEMENT
+// ==========================================================================
+const ADMIN_EMAILS = ["your.email@example.com"]; // Replace with your actual email
+
+let GEMINI_DAILY_LIMIT = 1425; 
+let SUPABASE_MONTHLY_LIMIT = 47500; 
+let currentGeminiUsage = 0;
+let currentSupabaseUsage = 0;
+
+async function logApiUsage(serviceName) {
+    if (!mySupabaseDb) return;
+    try {
+        await mySupabaseDb.from('api_usage').insert([{ service: serviceName }]);
+        if (serviceName === 'Gemini') currentGeminiUsage++;
+        if (serviceName === 'Supabase') currentSupabaseUsage++;
+    } catch (e) { console.error("Telemetry error:", e); }
+}
+
+async function fetchCurrentQuotas() {
+    if (!mySupabaseDb) return;
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    try {
+        // Fetch Settings (Limits)
+        const { data: settings } = await mySupabaseDb.from('app_settings').select('*');
+        if (settings) {
+            settings.forEach(s => {
+                if (s.id === 'gemini_daily_limit') GEMINI_DAILY_LIMIT = s.setting_value;
+                if (s.id === 'supabase_monthly_limit') SUPABASE_MONTHLY_LIMIT = s.setting_value;
+            });
+        }
+
+        // Fetch Usage Counts
+        const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('service', 'Gemini').gte('created_at', startOfDay);
+        const { count: sCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth);
+        
+        currentGeminiUsage = gCount || 0;
+        currentSupabaseUsage = sCount || 0;
+        
+        if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
+    } catch (e) { console.error("Quota fetch failed."); }
+}
+
+// ==========================================================================
+// 3. DYNAMIC LOCATION FETCHER
+// ==========================================================================
 async function refreshDynamicLocations() {
     if (!mySupabaseDb) return;
-    
     try {
         const { data, error } = await mySupabaseDb.from('items').select('location');
         if (error || !data) return;
 
         window.globalLocations = [...new Set(data.map(item => item.location).filter(Boolean))].sort();
-        
         const optionsHtml = window.globalLocations.map(l => `<option value="${l}">${l}</option>`).join('');
         
-        const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
-        const baseModal = `<option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>`;
+        const baseHome = `<option value="">-- Select a Location --</option><option value="NEW" style="font-weight:bold; color:#007aff;">➕ Create New Location...</option>`;
+        const baseModal = `<option value="NEW" style="font-weight:bold; color:#007aff;">➕ Create New Location...</option>`;
         const baseFilter = `<option value="All">All Locations</option>`;
 
-        // 1. CAPTURE EXISTING VALUES BEFORE REWRITING HTML
         const homeSelect = document.getElementById('location-select');
         const modalSelect = document.getElementById('modal-location-select');
         const filterSelect = document.getElementById('inventory-filter');
@@ -74,31 +120,18 @@ async function refreshDynamicLocations() {
         const currentModalVal = modalSelect ? modalSelect.value : "";
         const currentFilterVal = filterSelect ? filterSelect.value : "All";
 
-        // 2. REWRITE HTML AND RESTORE PREVIOUS VALUES
-        if (homeSelect) {
-            homeSelect.innerHTML = baseHome + optionsHtml;
-            if (currentHomeVal) homeSelect.value = currentHomeVal;
-        }
-
-        if (modalSelect) {
-            modalSelect.innerHTML = baseModal + optionsHtml;
-            if (currentModalVal) modalSelect.value = currentModalVal;
-        }
-
-        if (filterSelect) {
-            filterSelect.innerHTML = baseFilter + optionsHtml;
-            // Restore the filter choice (e.g. "Garage Table Drawer 3")
-            if (currentFilterVal) filterSelect.value = currentFilterVal;
-        }
-    } catch (e) {
-        console.error("Failed to fetch locations", e);
-    }
+        if (homeSelect) { homeSelect.innerHTML = baseHome + optionsHtml; if (currentHomeVal) homeSelect.value = currentHomeVal; }
+        if (modalSelect) { modalSelect.innerHTML = baseModal + optionsHtml; if (currentModalVal) modalSelect.value = currentModalVal; }
+        if (filterSelect) { filterSelect.innerHTML = baseFilter + optionsHtml; if (currentFilterVal) filterSelect.value = currentFilterVal; }
+    } catch (e) { console.error("Failed to fetch locations", e); }
 }
 
-// --- 2. AI SCANNER FUNCTION ---
+// ==========================================================================
+// 4. AI SCANNER FUNCTION
+// ==========================================================================
 async function scanContainerWithAI(base64Image) {
     if (!GEMINI_API_KEY) {
-        alert("Please save your Gemini API Key in the Settings tab first!");
+        alert("System Error: AI Key missing.");
         return [];
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
@@ -109,25 +142,33 @@ async function scanContainerWithAI(base64Image) {
     try {
         const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const result = await response.json();
-        if (result.error) { alert("AI Error: " + result.error.message); return []; }
+        
+        if (result.error) { 
+            alert("AI Error: " + result.error.message); 
+            return []; 
+        }
+
+        // Successfully hit the API, log the request!
+        await logApiUsage('Gemini');
 
         let rawText = result.candidates[0].content.parts[0].text.trim();
         if (rawText.startsWith("```json")) rawText = rawText.replaceAll("```json", "").replaceAll("```", "").trim();
         return JSON.parse(rawText); 
-    } catch (error) { alert("Failed to parse AI response."); return []; }
+    } catch (error) { 
+        alert("Failed to parse AI response."); 
+        return []; 
+    }
 }
 
-// --- 3. UI INITIALIZATION ---
+// ==========================================================================
+// 5. UI INITIALIZATION & MAIN LOGIC
+// ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
+    if (SUPABASE_URL && GEMINI_API_KEY) refreshDynamicLocations();
 
-    if (SUPABASE_URL && GEMINI_API_KEY) {
-        refreshDynamicLocations();
-    }
-
-    // A. UI LOCK/UNLOCK LOGIC
+    // A. UI LOCK/UNLOCK & CIRCUIT BREAKER
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
-    
     const camBtnLabel = document.getElementById('camera-btn-label');
     const uploadBtnLabel = document.getElementById('upload-btn-label');
     const camInput = document.getElementById('camera-input');
@@ -136,6 +177,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkHomeUnlockStatus() {
         if(!locSelect || !newLocInput || !camBtnLabel || !uploadBtnLabel || !camInput || !uploadInput) return;
         
+        // HARD STOP: Check Gemini Quota
+        if (currentGeminiUsage >= GEMINI_DAILY_LIMIT) {
+            camBtnLabel.style.background = "#dc3545"; 
+            camBtnLabel.style.color = "white";
+            camBtnLabel.style.cursor = "not-allowed";
+            camBtnLabel.innerText = "🛑 Daily AI Limit Reached";
+            camInput.disabled = true;
+
+            uploadBtnLabel.style.background = "#dc3545"; 
+            uploadBtnLabel.style.color = "white";
+            uploadBtnLabel.style.cursor = "not-allowed";
+            uploadBtnLabel.innerText = "🛑 Daily AI Limit Reached";
+            uploadInput.disabled = true;
+            return;
+        }
+
+        // NORMAL BEHAVIOR: Check Location
         let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
 
         if (finalVal !== "") {
@@ -145,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             camBtnLabel.innerText = "📸 Take Photo";
             camInput.disabled = false;
 
-            uploadBtnLabel.style.background = "#007bff";
+            uploadBtnLabel.style.background = "#007aff";
             uploadBtnLabel.style.color = "white";
             uploadBtnLabel.style.cursor = "pointer";
             uploadBtnLabel.innerText = "📁 Select File";
@@ -164,6 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadInput.disabled = true;
         }
     }
+    
+    window.triggerUnlockCheck = checkHomeUnlockStatus;
 
     if (locSelect) {
         locSelect.addEventListener('change', () => {
@@ -177,10 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
             checkHomeUnlockStatus();
         });
     }
-    
     if (newLocInput) newLocInput.addEventListener('input', checkHomeUnlockStatus);
 
-    // Modal UI Toggle Logic
+    // Modal Location Logic
     const modalSelect = document.getElementById('modal-location-select');
     const modalInput = document.getElementById('modal-location-input');
     if (modalSelect && modalInput) {
@@ -195,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // C. NAVIGATION
+    // B. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -215,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // D. CAMERA PROCESSING
+    // C. CAMERA PROCESSING
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -226,9 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.width = 800; canvas.height = img.height * (800 / img.width);
             canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
             const base64Data = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
+            
             const detectedItems = await scanContainerWithAI(base64Data);
             document.getElementById('loading-status').classList.add('hidden');
-            
             document.getElementById('verification-table-body').innerHTML = ""; 
             
             detectedItems.forEach((item, index) => {
@@ -260,23 +319,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (camInput) camInput.addEventListener('change', handleImageSelection);
     if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
-    // E. SAVE BULK
+    // D. SAVE BULK TO DATABASE
     const btnSaveBulk = document.getElementById('btn-save-bulk');
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
-            if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+            if (!mySupabaseDb) return alert("System Error: Database not connected.");
 
             const selectElement = document.getElementById('location-select');
             let targetLocation = selectElement.value;
-            
-            if (targetLocation === "NEW") {
-                targetLocation = document.getElementById('new-location-input-home').value.trim();
-            }
+            if (targetLocation === "NEW") targetLocation = document.getElementById('new-location-input-home').value.trim();
 
-            if (!targetLocation) {
-                alert("Please enter or select a location before saving.");
-                return;
-            }
+            if (!targetLocation) return alert("Please enter or select a location before saving.");
 
             const rows = document.querySelectorAll('#verification-table-body tr');
             let toInsert = [];
@@ -291,8 +344,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            if (toInsert.length === 0) {
-                alert("No items selected to save.");
+            if (toInsert.length === 0) return alert("No items selected to save.");
+
+            // HARD STOP: Check Supabase Quota
+            if (currentSupabaseUsage >= SUPABASE_MONTHLY_LIMIT) {
+                alert("🛑 Monthly Database limit reached to prevent billing. Please wait until next month, or contact the Admin.");
                 return;
             }
 
@@ -303,10 +359,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) {
                 alert("Database Error: " + error.message);
             } else { 
+                await logApiUsage('Supabase'); // Log the successful insert
                 alert(`Successfully saved ${toInsert.length} item(s)!`); 
+                
                 document.getElementById('verification-area').classList.add('hidden');
                 document.getElementById('verification-table-body').innerHTML = ""; 
-                
                 selectElement.value = "";
                 document.getElementById('new-location-input-home').classList.add('hidden');
                 document.getElementById('new-location-input-home').value = "";
@@ -314,19 +371,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 refreshDynamicLocations();
             }
-            
-            btnSaveBulk.innerText = "💾 Save Confirmed Items to Database";
+            btnSaveBulk.innerText = "💾 Save Confirmed Items";
         });
     }
 });
 
-// --- 4. INVENTORY MANAGEMENT & MODAL ---
+// ==========================================================================
+// 6. INVENTORY MANAGEMENT & MODAL
+// ==========================================================================
 let currentInventory = [];
 
 async function loadInventory() {
     if (!mySupabaseDb) return;
     
-    // PERFECT UX: Clear the old list instantly before showing the animation
     const tbody = document.getElementById('items-table-body');
     if (tbody) tbody.innerHTML = '';
     
@@ -400,7 +457,6 @@ window.checkBulkDeleteStatus = function() {
     else btn.classList.add('hidden');
 }
 
-// PERFECT UX: Better Deletion Sequencing
 window.bulkDeleteItems = async function() {
     const checkedBoxes = document.querySelectorAll('.row-cb:checked');
     if (checkedBoxes.length === 0) return;
@@ -409,20 +465,15 @@ window.bulkDeleteItems = async function() {
     const idsToDelete = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
     try {
-        // 1. Show animation & wipe list instantly to freeze UI
         const loadingDiv = document.getElementById('inventory-loading');
         if(loadingDiv) loadingDiv.classList.remove('hidden');
         const tbody = document.getElementById('items-table-body');
         if (tbody) tbody.innerHTML = '';
 
-        // 2. Perform the database delete silently
         const { error } = await mySupabaseDb.from('items').delete().in('id', idsToDelete);
         if (error) throw error;
         
-        // 3. Wait for the list to completely refresh (this turns off the animation)
         await loadInventory(); 
-        
-        // 4. Show success popup ONLY after everything is done
         alert(`Successfully deleted ${checkedBoxes.length} item(s).`);
 
     } catch (err) {
@@ -455,21 +506,15 @@ window.saveModalChanges = async () => {
     
     const selectElement = document.getElementById('modal-location-select');
     let locInput = selectElement.value;
-    
-    if (locInput === "NEW") {
-        locInput = document.getElementById('modal-location-input').value.trim();
-    }
+    if (locInput === "NEW") locInput = document.getElementById('modal-location-input').value.trim();
 
     const newTitle = document.getElementById('modal-title-input').value.trim();
     const newDesc = document.getElementById('modal-desc-input').value.trim();
 
-    if (!locInput) return alert("Location cannot be empty.");
-    if (!newTitle) return alert("Title cannot be empty.");
+    if (!locInput || !newTitle) return alert("Location and Title cannot be empty.");
 
     const { error } = await mySupabaseDb.from('items').update({ 
-        location: locInput,
-        title: newTitle,
-        description: newDesc
+        location: locInput, title: newTitle, description: newDesc
     }).eq('id', window.activeItemId);
     
     if (error) alert("Error: " + error.message); 
@@ -481,8 +526,68 @@ window.saveModalChanges = async () => {
 
 window.closeModal = () => document.getElementById('item-modal').classList.add('hidden');
 
+// ==========================================================================
+// 7. ADMIN DASHBOARD LOGIC
+// ==========================================================================
+document.getElementById('btn-open-admin').addEventListener('click', () => {
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('screen-admin').classList.remove('hidden');
+    loadAdminDashboard();
+});
 
-// --- 5. AUTHENTICATION & ACCOUNTS ---
+document.getElementById('btn-close-admin').addEventListener('click', () => {
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('screen-home').classList.remove('hidden');
+});
+
+async function loadAdminDashboard() {
+    if (!mySupabaseDb) return;
+    await fetchCurrentQuotas();
+
+    document.getElementById('gemini-daily-count').innerText = currentGeminiUsage;
+    document.getElementById('supabase-monthly-count').innerText = currentSupabaseUsage;
+
+    document.getElementById('input-gemini-limit').value = GEMINI_DAILY_LIMIT;
+    document.getElementById('input-supabase-limit').value = SUPABASE_MONTHLY_LIMIT;
+
+    document.getElementById('gemini-progress').max = GEMINI_DAILY_LIMIT;
+    document.getElementById('gemini-progress').value = currentGeminiUsage;
+    
+    document.getElementById('supabase-progress').max = SUPABASE_MONTHLY_LIMIT;
+    document.getElementById('supabase-progress').value = currentSupabaseUsage;
+}
+
+document.getElementById('btn-save-limits').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-save-limits');
+    const newGemini = parseInt(document.getElementById('input-gemini-limit').value);
+    const newSupabase = parseInt(document.getElementById('input-supabase-limit').value);
+
+    if (isNaN(newGemini) || isNaN(newSupabase)) return alert("Limits must be valid numbers.");
+
+    btn.innerText = "⏳ Saving...";
+
+    const { error } = await mySupabaseDb.from('app_settings').upsert([
+        { id: 'gemini_daily_limit', setting_value: newGemini },
+        { id: 'supabase_monthly_limit', setting_value: newSupabase }
+    ]);
+
+    if (error) {
+        alert("Failed to save settings: " + error.message);
+    } else {
+        GEMINI_DAILY_LIMIT = newGemini;
+        SUPABASE_MONTHLY_LIMIT = newSupabase;
+        document.getElementById('gemini-progress').max = GEMINI_DAILY_LIMIT;
+        document.getElementById('supabase-progress').max = SUPABASE_MONTHLY_LIMIT;
+        
+        if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
+        alert("Limits updated successfully!");
+    }
+    btn.innerText = "💾 Save New Limits";
+});
+
+// ==========================================================================
+// 8. AUTHENTICATION & ACCOUNTS
+// ==========================================================================
 let isSignUp = false;
 window.toggleAuthMode = () => {
     isSignUp = !isSignUp;
@@ -492,7 +597,7 @@ window.toggleAuthMode = () => {
 };
 
 window.handleAuth = async () => {
-    if (!mySupabaseDb) return alert("Database not connected! Check Settings.");
+    if (!mySupabaseDb) return alert("System Error: Database not connected.");
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     if (!email || !password) return alert("Please enter both email and password.");
@@ -519,35 +624,37 @@ window.logout = async () => {
     location.reload(); 
 };
 
-// Auto-check login status to show/hide the app
+// Auto-check login status
 if (mySupabaseDb) {
     mySupabaseDb.auth.onAuthStateChange((event, session) => {
         if (session) {
-            // User is logged in: Hide login screen, show app
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-content').classList.remove('hidden');
             
-            // Extract user details
-            const userEmail = session.user.email;
+            fetchCurrentQuotas();
             
-            // Format Supabase timestamps into readable local dates
+            const userEmail = session.user.email;
             const createdDate = new Date(session.user.created_at).toLocaleString();
             const lastSignInDate = new Date(session.user.last_sign_in_at).toLocaleString();
             
-            // Connect to HTML elements
             const homeDisplay = document.getElementById('home-user-display');
             const accountEmailDisplay = document.getElementById('account-email-display');
             const accountCreatedDisplay = document.getElementById('account-created-display');
             const accountLastSigninDisplay = document.getElementById('account-last-signin-display');
             
-            // Inject the data
             if (homeDisplay) homeDisplay.innerText = `👤 ${userEmail}`;
             if (accountEmailDisplay) accountEmailDisplay.innerText = userEmail;
             if (accountCreatedDisplay) accountCreatedDisplay.innerText = createdDate;
             if (accountLastSigninDisplay) accountLastSigninDisplay.innerText = lastSignInDate;
+
+            // Admin button visibility toggle
+            if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+                document.getElementById('admin-controls').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-controls').classList.add('hidden');
+            }
             
         } else {
-            // User is logged out: Show login screen, hide app
             document.getElementById('auth-screen').style.display = 'flex';
             document.getElementById('app-content').classList.add('hidden');
         }
