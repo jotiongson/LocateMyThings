@@ -20,14 +20,17 @@
     </div>
 
     <div id="app-content" class="hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1 style="font-size: 1.5rem;">LocateMyThings</h1>
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px;">
             <button onclick="logout()" style="background: #e5e5ea; color: #ff3b30; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;">Logout</button>
         </div>
 
         <div id="screen-home" class="view-panel">
             <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);">
-                <p id="home-user-display" style="font-weight: 600; color: var(--text-muted); margin-bottom: 15px;">👤 Loading...</p>
+                
+                <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
+                    <h1 style="font-size: 2rem; margin-bottom: 5px;">📦 LocateMyThings</h1>
+                    <p id="home-user-display" style="font-weight: 600; color: var(--text-muted);">👤 Loading...</p>
+                </div>
                 
                 <h3 style="margin-bottom: 8px;">1. Where are these items?</h3>
                 <select id="location-select" style="margin-bottom: 10px; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -94,7 +97,7 @@
         <div id="screen-manage" class="view-panel hidden">
             <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div class="search-container" style="margin-bottom: 10px;">
-                    <input type="text" id="inventory-search" placeholder="🔍 Search items..." oninput="renderInventoryTable()">
+                    <input type="search" id="inventory-search" placeholder="🔍 Search items..." oninput="renderInventoryTable()">
                     <select id="inventory-filter" onchange="renderInventoryTable()">
                         <option value="All">All Locations</option>
                     </select>
