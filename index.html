@@ -4,78 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LocateMyThings</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LocateMyThings">
+    <meta name="theme-color" content="#20c997">
+    
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- AUTHENTICATION SCREEN -->
-    <div id="auth-screen" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; padding: 20px;">
-        <img src="logo.png" alt="LocateMyThings Logo" style="max-height: 80px; margin-bottom: 15px;">
-        <h2 id="auth-title" style="margin-bottom: 20px; color: gray;">Welcome back</h2>
-        <div style="width: 100%; max-width: 350px;">
-            <input type="text" id="auth-email" placeholder="Email Address">
-            <input type="password" id="auth-password" placeholder="Password (Use a simple one!)">
-            <button id="auth-btn" class="primary-btn" onclick="handleAuth()">Secure Login</button>
-            <p id="auth-toggle" style="margin-top: 15px; color: #007aff; text-align: center; cursor: pointer; font-weight: 500;" onclick="toggleAuthMode()">Don't have an account? Register Here</p>
+
+    <div id="auth-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#f8f9fa; z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div style="width:90%; max-width:400px; background:white; padding:30px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+            
+            <div style="text-align: center; margin-bottom: 25px;">
+                <img src="icon.png" alt="LocateMyThings Logo" style="width: 80px; height: 80px; border-radius: 18px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h1 style="margin: 0; font-size: 1.8rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+            </div>
+
+            <h2 id="auth-title" style="text-align:center; margin-bottom:10px; font-size: 1.2rem;">Welcome back</h2>
+            <p id="auth-subtitle" style="text-align:center; color:gray; margin-bottom:20px; font-size: 0.9rem;">Enter your credentials to access your items.</p>
+            
+            <input type="email" id="auth-email" placeholder="Email Address" style="width:100%; margin-bottom:15px; padding:12px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
+            <input type="password" id="auth-password" placeholder="Password" style="width:100%; margin-bottom:20px; padding:12px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
+            
+            <button id="auth-btn" style="width:100%; padding:15px; background:#007bff; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; cursor:pointer;" onclick="handleAuth()">Secure Login</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle" style="background:none; color:#007bff; border:none; width:100%; margin-top:15px; font-weight:bold; cursor:pointer;">Don't have an account? Register Here</button>
         </div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
-    <div id="app-content" class="hidden">
+    <main id="app-content" class="hidden">
         
-        <!-- Header (Logout Only - Top Right) -->
-        <div style="display: flex; justify-content: flex-end; align-items: center;">
-            <button onclick="logout()" style="background: #e5e5ea; color: #ff3b30; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;">Logout</button>
-        </div>
-
-        <!-- 1. HOME VIEW (Scanning) -->
-        <div id="screen-home" class="view-panel">
-            
-            <!-- LOGO & USERNAME SECTION -->
-            <div style="text-align: center; margin-bottom: 10px;">
-                <img src="logo.png" alt="LocateMyThings Logo" style="max-height: 80px; margin-bottom: 10px;">
-                <p id="home-user-display" style="font-weight: 600; color: var(--text-muted);">👤 Loading...</p>
+        <section id="screen-home" class="view-panel">
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e5e5ea;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="icon.png" alt="Logo" style="width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h1 style="margin: 0; font-size: 1.5rem; color: #111827; letter-spacing: -0.5px;">LocateMyThings</h1>
+                </div>
+                <div id="home-user-display" style="font-size: 0.85rem; color: #495057; background: #e2e8f0; padding: 4px 12px; border-radius: 12px; word-break: break-all;">
+                    👤 Loading...
+                </div>
             </div>
             
-            <!-- Location Selection -->
-            <div>
-                <h3 style="margin-bottom: 8px;">1. Where are these items?</h3>
-                <select id="location-select" style="margin-bottom: 10px; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div style="border: 1px solid #dee2e6; border-radius: 12px; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                <label style="font-weight: bold; color: #495057; display: block; margin-bottom: 10px; font-size: 0.95rem;">Storage Location</label>
+                
+                <select id="location-select" style="width: 100%; border: 1px solid #ced4da; border-radius: 8px; font-size: 1.05rem; color: #212529; outline: none; background: #f8f9fa; padding: 12px;">
                     <option value="">-- Select a Location --</option>
-                    <option value="NEW" style="font-weight:bold; color:#007aff;">➕ Create New Location...</option>
+                    <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
                 </select>
-                <input type="text" id="new-location-input-home" class="hidden" placeholder="e.g., Garage Tool Chest Drawer 2">
+
+                <input type="text" id="new-location-input-home" placeholder="Type new location name here..." autocomplete="off" class="hidden" style="width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-top: 10px; background: #f8f9fa;">
             </div>
 
-            <!-- Camera / Upload Buttons -->
-            <div>
-                <h3 style="margin-bottom: 8px;">2. Scan Items</h3>
-                <div style="display: flex; gap: 10px;">
-                    <label id="camera-btn-label" for="camera-input" style="flex: 1; text-align: center; background: #e2e8f0; color: #94a3b8; padding: 15px; border-radius: 8px; font-weight: bold; cursor: not-allowed; transition: 0.2s;">
-                        🔒 Location Required
-                    </label>
-                    <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" disabled>
-
-                    <label id="upload-btn-label" for="upload-input" style="flex: 1; text-align: center; background: #e2e8f0; color: #94a3b8; padding: 15px; border-radius: 8px; font-weight: bold; cursor: not-allowed; transition: 0.2s;">
-                        🔒 Location Required
-                    </label>
-                    <input type="file" id="upload-input" accept="image/*" class="hidden" disabled>
-                </div>
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <label id="camera-btn-label" for="camera-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                    🔒 Unlock Camera
+                </label>
+                <label id="upload-btn-label" for="upload-input" style="flex: 1; text-align:center; display:block; padding: 15px; background: #e2e8f0; color: #94a3b8; border-radius: 8px; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                    🔒 Unlock Upload
+                </label>
+                <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" disabled>
+                <input type="file" id="upload-input" accept="image/*" style="display:none;" disabled>
             </div>
 
-            <!-- AI Loading Animation -->
-            <div id="loading-status" class="hidden loader-container" style="background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center;">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 10px;">
-                    <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
-                </div>
-                <p style="font-weight: bold; color: var(--accent);">AI is analyzing your image...</p>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">Identifying items and generating descriptions.</p>
+            <div id="loading-status" class="hidden" style="text-align: center; color: #007bff; font-weight: bold; margin-top: 15px;">
+                ⏳ Gemini AI is analyzing the image...
             </div>
 
-            <!-- Verification Table -->
             <div id="verification-area" class="hidden">
-                <h3 style="margin-bottom: 5px;">3. Verify Detected Items</h3>
-                <p style="color: gray; font-size: 0.85rem; margin-bottom: 15px;">
+                <h3 style="margin-top: 20px;">Verify Detected Items</h3>
+                <p style="color: gray; font-size: 0.85rem; margin-bottom: 10px;">
                     Uncheck items to ignore them. Edit titles and descriptions directly.
                 </p>
                 
@@ -94,146 +99,157 @@
                     </table>
                 </div>
 
-                <button id="btn-save-bulk" class="primary-btn" style="margin-top: 20px;">
-                    💾 Save Confirmed Items
+                <button id="btn-save-bulk" style="background: #20c997; color: white; border: none; border-radius: 5px; padding: 15px; margin-top: 20px; width: 100%; font-weight: bold;">
+                    💾 Save Confirmed Items to Database
                 </button>
             </div>
 
-            <!-- Admin Controls (Hidden by Default) -->
-            <div id="admin-controls" class="hidden">
+            <div id="admin-controls" class="hidden" style="margin-top: 20px;">
                 <button id="btn-open-admin" style="background: #343a40; color: white; border: none; border-radius: 8px; padding: 12px; width: 100%; font-weight: bold;">
                     📊 Admin Usage Dashboard
                 </button>
             </div>
-        </div>
+        </section>
 
-        <!-- 2. MANAGE VIEW -->
-        <div id="screen-manage" class="view-panel hidden">
+        <section id="screen-manage" class="view-panel hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Inventory Registry</h2>
+                <span id="inventory-count" style="font-weight: bold; color: #007bff; font-size: 1.1rem;">0 Items</span>
+            </div>
             
-            <!-- Search & Filter (Restored type="search" for the 'X' button) -->
-            <div class="search-container">
-                <input type="search" id="inventory-search" placeholder="🔍 Search items..." oninput="renderInventoryTable()">
-                <select id="inventory-filter" onchange="renderInventoryTable()">
+            <div style="margin-bottom: 10px;">
+                <input type="search" id="inventory-search" placeholder="🔍 Search by title or description..." autocomplete="off" onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                     <option value="All">All Locations</option>
                 </select>
-            </div>
-            
-            <!-- Count & Delete Controls -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span id="inventory-count" style="font-weight: bold; color: var(--text-muted);">0 Items</span>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll()"> Select All
-                    </label>
-                    <button id="btn-bulk-delete" class="hidden" onclick="bulkDeleteItems()" style="background: #ff3b30; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">🗑️ Delete Selected</button>
-                </div>
+                <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                    🗑️ Delete Selected
+                </button>
             </div>
 
-            <!-- Loading Spinner -->
-            <div id="inventory-loading" class="hidden loader-container" style="padding: 40px 0;">
-                <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+            <div id="inventory-loading" class="hidden loader-container">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
             </div>
 
-            <!-- Inventory Table -->
             <div class="table-wrapper">
-                <table>
+                <table id="items-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-cb" onchange="toggleSelectAll()"></th>
+                            <th>Photo</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
                     <tbody id="items-table-body"></tbody>
                 </table>
             </div>
-        </div>
 
-        <!-- 3. ACCOUNT VIEW -->
-        <div id="screen-account" class="view-panel hidden">
-            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-                <h2 style="margin-bottom: 15px;">Account Details</h2>
-                <p style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.85rem;">Registered Email</p>
-                <p id="account-email-display" style="font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">Loading...</p>
-                
-                <p style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.85rem;">Account Created</p>
-                <p id="account-created-display" style="font-weight: 500; margin-bottom: 15px;">Loading...</p>
+            <div id="item-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; padding: 20px; box-sizing: border-box; overflow-y: auto;">
+                <div style="background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 5vh auto;">
+                    
+                    <img id="modal-img" src="" style="width: 100%; height: 250px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 15px;">
+                    
+                    <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Item Title:</label>
+                    <input type="text" id="modal-title-input" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1rem; font-weight: bold; box-sizing: border-box; margin-bottom: 15px;">
 
-                <p style="color: var(--text-muted); margin-bottom: 5px; font-size: 0.85rem;">Last Sign In</p>
-                <p id="account-last-signin-display" style="font-weight: 500;">Loading...</p>
+                    <label style="font-weight: bold; color: #333; display: block; margin-bottom: 5px;">Description:</label>
+                    <textarea id="modal-desc-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; margin-bottom: 15px; resize: vertical;"></textarea>
+                    
+                    <label style="font-weight: bold; color: #333;">Change Location:</label>
+                    <select id="modal-location-select" style="width: 100%; margin: 5px 0 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                        <option value="NEW" style="font-weight:bold; color:#007bff;">➕ Create New Location...</option>
+                    </select>
+                    <input type="text" id="modal-location-input" placeholder="Type new location here..." autocomplete="off" class="hidden" style="width: 100%; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box;">
+
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="saveModalChanges()" style="flex:1; background:#28a745; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">💾 Save</button>
+                        <button onclick="closeModal()" style="flex:1; background:#6c757d; color:white; border:none; padding:12px; border-radius: 4px; font-weight: bold; cursor: pointer;">❌ Close</button>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 4. ADMIN DASHBOARD VIEW -->
-        <div id="screen-admin" class="view-panel hidden">
-            <h2>System Telemetry</h2>
-            <p style="color: gray; font-size: 0.85rem;">Real-time API quota monitoring and dynamic limits.</p>
+        <section id="screen-account" class="view-panel hidden">
+            <h2>Account Details</h2>
+            <p style="color: gray; font-size: 0.85rem; margin-bottom: 20px;">
+                Manage your active session and view your secure identifier.
+            </p>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 25px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Logged in as:</label>
+                <div id="account-email-display" style="font-size: 1.1rem; color: #007bff; word-break: break-all; margin-bottom: 15px;">
+                    --
+                </div>
+                
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Account Created:</label>
+                <div id="account-created-display" style="font-size: 0.9rem; color: #6c757d; margin-bottom: 15px;">
+                    --
+                </div>
+
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; color: #495057;">Last Sign In:</label>
+                <div id="account-last-signin-display" style="font-size: 0.9rem; color: #6c757d;">
+                    --
+                </div>
+            </div>
             
-            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 10px;">
-                <h3 style="margin-bottom: 10px;">🧠 Google AI Studio</h3>
+            <button onclick="logout()" style="width: 100%; padding: 15px; background: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">🚪 Secure Log Out</button>
+        </section>
+
+        <section id="screen-admin" class="view-panel hidden">
+            <h2>System Telemetry</h2>
+            <p style="color: gray; font-size: 0.85rem; margin-bottom: 20px;">Real-time API quota monitoring and dynamic limits.</p>
+            
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                <h3 style="margin-bottom: 10px; margin-top: 0;">🧠 Google AI Studio</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span>Today's Scans: <span id="gemini-daily-count" style="font-weight: bold;">0</span></span>
                     <div style="display: flex; align-items: center; gap: 5px;">
                         <span style="font-size: 0.85rem; color: gray;">Limit:</span>
-                        <input type="number" id="input-gemini-limit" style="width: 80px; padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); text-align: center;">
+                        <input type="number" id="input-gemini-limit" style="width: 80px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
                     </div>
                 </div>
                 <progress id="gemini-progress" value="0" max="1425" style="width: 100%; height: 10px;"></progress>
             </div>
 
-            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <h3 style="margin-bottom: 10px;">🗄️ Supabase</h3>
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                <h3 style="margin-bottom: 10px; margin-top: 0;">🗄️ Supabase</h3>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span>This Month's Logs: <span id="supabase-monthly-count" style="font-weight: bold;">0</span></span>
                     <div style="display: flex; align-items: center; gap: 5px;">
                         <span style="font-size: 0.85rem; color: gray;">Limit:</span>
-                        <input type="number" id="input-supabase-limit" style="width: 100px; padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); text-align: center;">
+                        <input type="number" id="input-supabase-limit" style="width: 100px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
                     </div>
                 </div>
                 <progress id="supabase-progress" value="0" max="47500" style="width: 100%; height: 10px;"></progress>
             </div>
             
-            <button id="btn-save-limits" style="background: var(--accent-success); color: white; border: none; border-radius: 8px; padding: 12px; width: 100%; font-weight: bold;">
+            <button id="btn-save-limits" style="background: #28a745; color: white; border: none; border-radius: 8px; padding: 12px; width: 100%; font-weight: bold; margin-bottom: 10px;">
                 💾 Save New Limits
             </button>
 
-            <button id="btn-close-admin" style="background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; width: 100%; font-weight: bold;">
+            <button id="btn-close-admin" style="background: #6c757d; padding: 12px; border-radius: 8px; color: white; border: none; width: 100%; font-weight: bold;">
                 ⬅️ Back to Home
             </button>
-        </div>
-        
-        <div style="height: 65px;"></div>
-    </div>
+        </section>
 
-    <!-- ITEM EDIT MODAL -->
-    <div id="item-modal" class="hidden" style="position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px;">
-        <div style="background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
-            <h3 style="margin-bottom: 15px;">Edit Item</h3>
-            <img id="modal-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 15px;">
-            
-            <label style="font-weight: bold; font-size: 0.85rem; color: var(--text-muted);">Title</label>
-            <input type="text" id="modal-title-input" style="margin-bottom: 15px;">
-            
-            <label style="font-weight: bold; font-size: 0.85rem; color: var(--text-muted);">Description</label>
-            <input type="text" id="modal-desc-input" style="margin-bottom: 15px;">
-            
-            <label style="font-weight: bold; font-size: 0.85rem; color: var(--text-muted);">Location</label>
-            <select id="modal-location-select" style="margin-bottom: 10px;"></select>
-            <input type="text" id="modal-location-input" class="hidden" placeholder="New Location Name" style="margin-bottom: 15px;">
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button onclick="closeModal()" style="flex: 1; background: #e5e5ea; color: #333;">Cancel</button>
-                <button onclick="saveModalChanges()" class="primary-btn" style="flex: 1; padding: 12px;">Save</button>
-            </div>
-        </div>
-    </div>
+    </main>
 
-    <!-- BOTTOM NAVIGATION -->
     <nav class="bottom-nav">
         <button class="nav-item active" data-target="screen-home">
-            <span class="icon">🏠</span>
-            <span class="label">Home</span>
+            <span class="icon">🏠</span><span class="label">Home</span>
         </button>
         <button class="nav-item" data-target="screen-manage">
-            <span class="icon">📦</span>
-            <span class="label">Manage</span>
+            <span class="icon">📦</span><span class="label">Manage</span>
         </button>
         <button class="nav-item" data-target="screen-account">
-            <span class="icon">👤</span>
-            <span class="label">Account</span>
+            <span class="icon">👤</span><span class="label">Account</span>
         </button>
     </nav>
 
