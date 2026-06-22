@@ -364,18 +364,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 await logApiUsage('Supabase'); // Log the successful insert
                 alert(`Successfully saved ${toInsert.length} item(s)!`); 
                 
+                // Clear out the previous photo verification rows
                 document.getElementById('verification-area').classList.add('hidden');
                 document.getElementById('verification-table-body').innerHTML = ""; 
-                selectElement.value = "";
-                document.getElementById('new-location-input-home').classList.add('hidden');
-                document.getElementById('new-location-input-home').value = "";
-                selectElement.dispatchEvent(new Event('change'));
                 
-                refreshDynamicLocations();
+                // 1. Refresh dynamic locations from database so the new choice is registered
+                await refreshDynamicLocations();
+                
+                // 2. Lock the dropdown back onto the location you just used
+                selectElement.value = targetLocation;
+                
+                // 3. Clean up and hide the text box if you had used a "NEW" location
+                const homeTextInput = document.getElementById('new-location-input-home');
+                if (homeTextInput) {
+                    homeTextInput.classList.add('hidden');
+                    homeTextInput.value = "";
+                }
+                
+                // 4. Force a status check to keep camera/upload buttons unlocked and ready
+                if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
             }
             btnSaveBulk.innerText = "💾 Save Confirmed Items";
         });
     }
+    
 });
 
 // ==========================================================================
