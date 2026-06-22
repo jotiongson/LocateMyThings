@@ -57,7 +57,7 @@ async function logApiUsage(serviceName) {
     if (!mySupabaseDb) return;
     try {
         // CHANGED: 'service' is now 'endpoint' to match your database
-        await mySupabaseDb.from('api_usage').insert([{ endpoint: serviceName }]);
+        await mySupabaseDb.from('api_usage').insert([{ service: serviceName }]);
         if (serviceName === 'Gemini') currentGeminiUsage++;
         if (serviceName === 'Supabase') currentSupabaseUsage++;
     } catch (e) { console.error("Telemetry error:", e); }
@@ -81,7 +81,7 @@ async function fetchCurrentQuotas() {
 
         // Fetch Usage Counts
         // CHANGED: .eq('service', 'Gemini') is now .eq('endpoint', 'Gemini')
-        const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('endpoint', 'Gemini').gte('created_at', startOfDay);
+        const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('service', 'Gemini').gte('created_at', startOfDay);
         const { count: sCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth);
         
         currentGeminiUsage = gCount || 0;
