@@ -53,20 +53,42 @@ window.globalLocations = [];
 // ==========================================================================
 // 2. ADMIN TELEMETRY & QUOTA ENFORCEMENT
 // ==========================================================================
-const ADMIN_EMAILS = ["josephtiongson@hotmail.com"]; 
-
-let GEMINI_DAILY_LIMIT = 1425; 
-let SUPABASE_MONTHLY_LIMIT = 47500; 
-let currentGeminiUsage = 0;
-let currentSupabaseUsage = 0;
-
 async function logApiUsage(serviceName) {
     if (!mySupabaseDb) return;
     try {
-        await mySupabaseDb.from('api_usage').insert([{ service: serviceName }]);
+        // CHANGED: 'service' is now 'endpoint' to match your database
+        await mySupabaseDb.from('api_usage').insert([{ endpoint: serviceName }]);
         if (serviceName === 'Gemini') currentGeminiUsage++;
         if (serviceName === 'Supabase') currentSupabaseUsage++;
     } catch (e) { console.error("Telemetry error:", e); }
+}
+
+async function fetchCurrentQuotas() {
+    if (!mySupabaseDb) return;
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    try {
+        // Fetch Settings (Limits)
+        const { data: settings } = await mySupabaseDb.from('app_settings').select('*');
+        if (settings) {
+            settings.forEach(s => {
+                if (s.id === 'gemini_daily_limit') GEMINI_DAILY_LIMIT = s.setting_value;
+                if (s.id === 'supabase_monthly_limit') SUPABASE_MONTHLY_LIMIT = s.setting_value;
+            });
+        }
+
+        // Fetch Usage Counts
+        // CHANGED: .eq('service', 'Gemini') is now .eq('endpoint', 'Gemini')
+        const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('endpoint', 'Gemini').gte('created_at', startOfDay);
+        const { count: sCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth);
+        
+        currentGeminiUsage = gCount || 0;
+        currentSupabaseUsage = sCount || 0;
+        
+        if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
+    } catch (e) { console.error("Quota fetch failed."); }
 }
 
 async function fetchCurrentQuotas() {
