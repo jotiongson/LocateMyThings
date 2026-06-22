@@ -53,42 +53,20 @@ window.globalLocations = [];
 // ==========================================================================
 // 2. ADMIN TELEMETRY & QUOTA ENFORCEMENT
 // ==========================================================================
+const ADMIN_EMAILS = ["josephtiongson@hotmail.com"]; 
+
+let GEMINI_DAILY_LIMIT = 970; 
+let SUPABASE_MONTHLY_LIMIT = 47500; 
+let currentGeminiUsage = 0;
+let currentSupabaseUsage = 0;
+
 async function logApiUsage(serviceName) {
     if (!mySupabaseDb) return;
     try {
-        // CHANGED: 'service' is now 'endpoint' to match your database
         await mySupabaseDb.from('api_usage').insert([{ service: serviceName }]);
         if (serviceName === 'Gemini') currentGeminiUsage++;
         if (serviceName === 'Supabase') currentSupabaseUsage++;
     } catch (e) { console.error("Telemetry error:", e); }
-}
-
-async function fetchCurrentQuotas() {
-    if (!mySupabaseDb) return;
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-    try {
-        // Fetch Settings (Limits)
-        const { data: settings } = await mySupabaseDb.from('app_settings').select('*');
-        if (settings) {
-            settings.forEach(s => {
-                if (s.id === 'gemini_daily_limit') GEMINI_DAILY_LIMIT = s.setting_value;
-                if (s.id === 'supabase_monthly_limit') SUPABASE_MONTHLY_LIMIT = s.setting_value;
-            });
-        }
-
-        // Fetch Usage Counts
-        // CHANGED: .eq('service', 'Gemini') is now .eq('endpoint', 'Gemini')
-        const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('service', 'Gemini').gte('created_at', startOfDay);
-        const { count: sCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth);
-        
-        currentGeminiUsage = gCount || 0;
-        currentSupabaseUsage = sCount || 0;
-        
-        if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
-    } catch (e) { console.error("Quota fetch failed."); }
 }
 
 async function fetchCurrentQuotas() {
@@ -156,7 +134,6 @@ async function scanContainerWithAI(base64Image) {
         alert("System Error: AI Key missing.");
         return [];
     }
-    //const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
     const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
 
