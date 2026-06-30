@@ -134,10 +134,9 @@ async function scanContainerWithAI(base64Image) {
         alert("System Error: AI Key missing.");
         return [];
     }
-    //const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
-    const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
+    const prompt = "Analyze this storage location image. Identify all distinct, separate items visible. Ensure the bounding box encompasses the entire visible object, including extended parts, handles, or blades, leaving a small margin of space around the edges. Provide a concise Title (2-4 words), a brief Description, and a bounding box for each item. Return the data strictly as a valid JSON array of objects with 'title', 'description', and 'box_2d' keys. The 'box_2d' must be an array of 4 numbers [ymin, xmin, ymax, xmax] representing the normalized bounding box (0 to 1000) of the item. Do not use markdown wrappers.";
 
     const payload = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] };
 
@@ -276,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // C. CAMERA PROCESSING
+    // C. CAMERA PROCESSING (With 15% Padding Logic)
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -296,12 +295,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 let thumbHtml = "", base64Str = "";
                 if (item.box_2d) {
                     const c = document.createElement('canvas'), ctx = c.getContext('2d');
-                    const ymin = (item.box_2d[0]/1000)*img.height, xmin = (item.box_2d[1]/1000)*img.width;
-                    const w = (item.box_2d[3]-item.box_2d[1])/1000*img.width, h = (item.box_2d[2]-item.box_2d[0])/1000*img.height;
+                    
+                    // Calculate original coordinates
+                    let origYmin = (item.box_2d[0] / 1000) * img.height;
+                    let origXmin = (item.box_2d[1] / 1000) * img.width;
+                    let origW = ((item.box_2d[3] - item.box_2d[1]) / 1000) * img.width;
+                    let origH = ((item.box_2d[2] - item.box_2d[0]) / 1000) * img.height;
+
+                    // Calculate 15% padding
+                    let padX = origW * 0.15;
+                    let padY = origH * 0.15;
+
+                    // Apply padding without exceeding image boundaries
+                    let xmin = Math.max(0, origXmin - padX);
+                    let ymin = Math.max(0, origYmin - padY);
+                    let w = Math.min(img.width - xmin, origW + (padX * 2));
+                    let h = Math.min(img.height - ymin, origH + (padY * 2));
+
                     c.width = w; c.height = h;
                     ctx.drawImage(img, xmin, ymin, w, h, 0, 0, w, h);
-                    base64Str = c.toDataURL('image/jpeg', 0.6);
-                    thumbHtml = `<img src="${base64Str}" style="width:50px; height:50px; border-radius:4px; object-fit:cover;">`;
+                    base64Str = c.toDataURL('image/jpeg', 0.8);
+                    
+                    // Updated styling for unclipped views
+                    thumbHtml = `<img src="${base64Str}" style="width:80px; height:80px; border-radius:4px; object-fit:contain; background:#f8f9fa;">`;
                 }
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -391,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================================
-// 6. INVENTORY MANAGEMENT & MODAL
+// 6. INVENTORY MANAGEMENT & MODAL (With Google-Like Search)
 // ==========================================================================
 let currentInventory = [];
 
@@ -417,14 +433,25 @@ window.renderInventoryTable = function() {
     if(!tbody) return;
 
     const loc = document.getElementById('inventory-filter').value;
-    const search = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
+    const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
+    
+    // Split search input into individual words, filtering out empty spaces
+    const searchTerms = searchInput.split(' ').filter(term => term.length > 0);
     
     tbody.innerHTML = '';
     
-    const filteredData = currentInventory.filter(item => 
-        (loc === "All" || item.location === loc) && 
-        (item.title.toLowerCase().includes(search) || item.description.toLowerCase().includes(search))
-    );
+    const filteredData = currentInventory.filter(item => {
+        // 1. Check Location Match
+        const matchesLocation = (loc === "All" || item.location === loc);
+        
+        // 2. Google-Like Match: EVERY search term must be present in either title OR description
+        const matchesSearch = searchTerms.every(term => 
+            item.title.toLowerCase().includes(term) || 
+            item.description.toLowerCase().includes(term)
+        );
+
+        return matchesLocation && matchesSearch;
+    });
 
     const countSpan = document.getElementById('inventory-count');
     if (countSpan) countSpan.innerText = `${filteredData.length} Item${filteredData.length !== 1 ? 's' : ''}`;
