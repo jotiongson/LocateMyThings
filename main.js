@@ -418,14 +418,52 @@ async function loadInventory() {
     if (tbody) tbody.innerHTML = '';
     
     const loadingDiv = document.getElementById('inventory-loading');
-    if(loadingDiv) loadingDiv.classList.remove('hidden');
+    if(loadingDiv) {
+        // Upgrade the loader to include a progress text element
+        loadingDiv.innerHTML = `
+            <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+            <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Calculating payload...</span>
+        `;
+        loadingDiv.classList.remove('hidden');
+    }
 
-    const { data } = await mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
-    currentInventory = data || [];
-    refreshDynamicLocations(); 
-    window.renderInventoryTable();
-
-    if(loadingDiv) loadingDiv.classList.add('hidden');
+    try {
+        // Step 1: Get the exact total count of items first
+        const { count, error: countError } = await mySupabaseDb.from('items').select('*', { count: 'exact', head: true });
+        if (countError) throw new Error("Count Exception: " + countError.message);
+        
+        let allData = [];
+        const pageSize = 100; // Fetch 100 items at a time
+        
+        // Step 2: Loop and fetch in batches
+        for (let i = 0; i < count; i += pageSize) {
+            const progressText = document.getElementById('loading-progress-text');
+            if (progressText) {
+                // Entertain the user with live progress metrics
+                progressText.innerText = `Fetching ${Math.min(i + pageSize, count)} of ${count} items...`;
+            }
+            
+            const { data, error } = await mySupabaseDb.from('items')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(i, i + pageSize - 1);
+                
+            if (error) throw new Error(`Batch Exception at offset ${i}: ` + error.message);
+            
+            allData = allData.concat(data);
+        }
+        
+        currentInventory = allData || [];
+        refreshDynamicLocations(); 
+        window.renderInventoryTable();
+        
+    } catch (err) {
+        // Strict visibility into transaction failures
+        alert(`Data Retrieval Exception:\n${err.message}\n\nPlease check the console for deeper diagnostic details.`);
+        console.error("Inventory Fetch Architecture Error:", err);
+    } finally {
+        if(loadingDiv) loadingDiv.classList.add('hidden');
+    }
 }
 
 window.renderInventoryTable = function() {
@@ -701,3 +739,34 @@ if (mySupabaseDb) {
         }
     });
 }
+
+// ==========================================================================
+// 9. NATIVE PULL-TO-REFRESH MECHANICS
+// ==========================================================================
+let pwaTouchstartY = 0;
+let pwaTouchendY = 0;
+
+// Listen to the entire document or a specific scrollable container
+document.addEventListener('touchstart', e => {
+    // Only register the start if we are at the very top of the page
+    if (window.scrollY === 0) {
+        pwaTouchstartY = e.changedTouches[0].screenY;
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+    if (window.scrollY === 0) {
+        pwaTouchendY = e.changedTouches[0].screenY;
+        
+        // If the user pulled down more than 150 pixels, trigger the hard reset
+        if (pwaTouchendY > pwaTouchstartY + 150) {
+            
+            // Optional visual feedback before reload
+            document.body.style.opacity = "0.5"; 
+            document.body.style.transition = "opacity 0.2s ease";
+            
+            // Hard reload clears memory leaks and restores baseline predictability 
+            location.reload(); 
+        }
+    }
+}, { passive: true });
