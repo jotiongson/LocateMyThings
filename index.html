@@ -118,13 +118,19 @@
             </div>
             
             <div style="margin-bottom: 10px;">
-                <input type="search" id="inventory-search" placeholder="🔍 Search by title or description..." autocomplete="off" onkeyup="window.renderInventoryTable()" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <input type="search" id="inventory-search" placeholder="🔍 Search by title or description..." autocomplete="off" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                <select id="inventory-filter" onchange="window.renderInventoryTable()" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                <select id="inventory-filter" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                     <option value="All">All Locations</option>
                 </select>
+                
+                <!-- NEW MANUAL FETCH BUTTON -->
+                <button id="btn-load-inventory" onclick="loadInventory()" style="background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                    🚀 Fetch
+                </button>
+
                 <button id="btn-bulk-delete" onclick="bulkDeleteItems()" class="hidden" style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">
                     🗑️ Delete Selected
                 </button>
