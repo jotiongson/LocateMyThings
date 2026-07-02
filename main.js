@@ -57,8 +57,20 @@ const ADMIN_EMAILS = ["josephtiongson@hotmail.com"];
 
 let GEMINI_DAILY_LIMIT = 970; 
 let SUPABASE_MONTHLY_LIMIT = 47500; 
+let SUPABASE_EGRESS_LIMIT = 5120; // 5 GB in MB
+
 let currentGeminiUsage = 0;
 let currentSupabaseUsage = 0;
+let currentEgressUsage = parseFloat(localStorage.getItem('locate_egress_usage') || "0");
+
+// Helper function to track network traffic bytes
+function trackEgressPayload(data) {
+    if (!data) return;
+    const bytes = new Blob([JSON.stringify(data)]).size;
+    const mb = bytes / (1024 * 1024);
+    currentEgressUsage += mb;
+    localStorage.setItem('locate_egress_usage', currentEgressUsage.toFixed(2));
+}
 
 async function logApiUsage(serviceName) {
     if (!mySupabaseDb) return;
@@ -149,7 +161,6 @@ async function scanContainerWithAI(base64Image) {
             return []; 
         }
 
-        // Successfully hit the API, log the request!
         await logApiUsage('Gemini');
 
         let rawText = result.candidates[0].content.parts[0].text.trim();
@@ -167,7 +178,6 @@ async function scanContainerWithAI(base64Image) {
 document.addEventListener('DOMContentLoaded', () => {
     if (SUPABASE_URL && GEMINI_API_KEY) refreshDynamicLocations();
 
-    // A. UI LOCK/UNLOCK & CIRCUIT BREAKER
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
     const camBtnLabel = document.getElementById('camera-btn-label');
@@ -178,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkHomeUnlockStatus() {
         if(!locSelect || !newLocInput || !camBtnLabel || !uploadBtnLabel || !camInput || !uploadInput) return;
         
-        // HARD STOP: Check Gemini Quota
         if (currentGeminiUsage >= GEMINI_DAILY_LIMIT) {
             camBtnLabel.style.background = "#dc3545"; 
             camBtnLabel.style.color = "white";
@@ -194,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // NORMAL BEHAVIOR: Check Location
         let finalVal = locSelect.value === "NEW" ? newLocInput.value.trim() : locSelect.value.trim();
 
         if (finalVal !== "") {
@@ -240,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (newLocInput) newLocInput.addEventListener('input', checkHomeUnlockStatus);
 
-    // Modal Location Logic
     const modalSelect = document.getElementById('modal-location-select');
     const modalInput = document.getElementById('modal-location-input');
     if (modalSelect && modalInput) {
@@ -255,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // B. NAVIGATION
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
@@ -275,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // C. CAMERA PROCESSING (With 15% Padding Logic)
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -296,17 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (item.box_2d) {
                     const c = document.createElement('canvas'), ctx = c.getContext('2d');
                     
-                    // Calculate original coordinates
                     let origYmin = (item.box_2d[0] / 1000) * img.height;
                     let origXmin = (item.box_2d[1] / 1000) * img.width;
                     let origW = ((item.box_2d[3] - item.box_2d[1]) / 1000) * img.width;
                     let origH = ((item.box_2d[2] - item.box_2d[0]) / 1000) * img.height;
 
-                    // Calculate 15% padding
                     let padX = origW * 0.15;
                     let padY = origH * 0.15;
 
-                    // Apply padding without exceeding image boundaries
                     let xmin = Math.max(0, origXmin - padX);
                     let ymin = Math.max(0, origYmin - padY);
                     let w = Math.min(img.width - xmin, origW + (padX * 2));
@@ -316,7 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     ctx.drawImage(img, xmin, ymin, w, h, 0, 0, w, h);
                     base64Str = c.toDataURL('image/jpeg', 0.8);
                     
-                    // Updated styling for unclipped views
                     thumbHtml = `<img src="${base64Str}" style="width:80px; height:80px; border-radius:4px; object-fit:contain; background:#f8f9fa;">`;
                 }
                 const row = document.createElement('tr');
@@ -337,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (camInput) camInput.addEventListener('change', handleImageSelection);
     if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
-    // D. SAVE BULK TO DATABASE
     const btnSaveBulk = document.getElementById('btn-save-bulk');
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
@@ -364,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (toInsert.length === 0) return alert("No items selected to save.");
 
-            // HARD STOP: Check Supabase Quota
             if (currentSupabaseUsage >= SUPABASE_MONTHLY_LIMIT) {
                 alert("🛑 Monthly Database limit reached to prevent billing. Please wait until next month, or contact the Admin.");
                 return;
@@ -377,37 +376,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) {
                 alert("Database Error: " + error.message);
             } else { 
-                await logApiUsage('Supabase'); // Log the successful insert
+                await logApiUsage('Supabase');
                 alert(`Successfully saved ${toInsert.length} item(s)!`); 
                 
-                // Clear out the previous photo verification rows
                 document.getElementById('verification-area').classList.add('hidden');
                 document.getElementById('verification-table-body').innerHTML = ""; 
                 
-                // 1. Refresh dynamic locations from database so the new choice is registered
                 await refreshDynamicLocations();
-                
-                // 2. Lock the dropdown back onto the location you just used
                 selectElement.value = targetLocation;
                 
-                // 3. Clean up and hide the text box if you had used a "NEW" location
                 const homeTextInput = document.getElementById('new-location-input-home');
                 if (homeTextInput) {
                     homeTextInput.classList.add('hidden');
                     homeTextInput.value = "";
                 }
                 
-                // 4. Force a status check to keep camera/upload buttons unlocked and ready
                 if (typeof window.triggerUnlockCheck === 'function') window.triggerUnlockCheck();
             }
             btnSaveBulk.innerText = "💾 Save Confirmed Items";
         });
     }
-    
 });
 
 // ==========================================================================
-// 6. INVENTORY MANAGEMENT & MODAL (With Google-Like Search)
+// 6. INVENTORY MANAGEMENT & MODAL (With Search & Egress Limits)
 // ==========================================================================
 let currentInventory = [];
 
@@ -419,7 +411,6 @@ async function loadInventory() {
     
     const loadingDiv = document.getElementById('inventory-loading');
     if(loadingDiv) {
-        // Upgrade the loader to include a progress text element
         loadingDiv.innerHTML = `
             <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
             <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Calculating payload...</span>
@@ -428,28 +419,26 @@ async function loadInventory() {
     }
 
     try {
-        // Step 1: Get the exact total count of items first
         const { count, error: countError } = await mySupabaseDb.from('items').select('*', { count: 'exact', head: true });
         if (countError) throw new Error("Count Exception: " + countError.message);
         
         let allData = [];
-        const pageSize = 100; // Fetch 100 items at a time
+        const pageSize = 100; 
         
-        // Step 2: Loop and fetch in batches
         for (let i = 0; i < count; i += pageSize) {
             const progressText = document.getElementById('loading-progress-text');
             if (progressText) {
-                // Entertain the user with live progress metrics
                 progressText.innerText = `Fetching ${Math.min(i + pageSize, count)} of ${count} items...`;
             }
             
             const { data, error } = await mySupabaseDb.from('items')
-                .select('*')
+                .select('id, created_at, title, description, location') // Strict egress exclusion of image_base64
                 .order('created_at', { ascending: false })
                 .range(i, i + pageSize - 1);
                 
             if (error) throw new Error(`Batch Exception at offset ${i}: ` + error.message);
             
+            trackEgressPayload(data); // Log text footprint
             allData = allData.concat(data);
         }
         
@@ -458,7 +447,6 @@ async function loadInventory() {
         window.renderInventoryTable();
         
     } catch (err) {
-        // Strict visibility into transaction failures
         alert(`Data Retrieval Exception:\n${err.message}\n\nPlease check the console for deeper diagnostic details.`);
         console.error("Inventory Fetch Architecture Error:", err);
     } finally {
@@ -473,16 +461,24 @@ window.renderInventoryTable = function() {
     const loc = document.getElementById('inventory-filter').value;
     const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
-    // Split search input into individual words, filtering out empty spaces
-    const searchTerms = searchInput.split(' ').filter(term => term.length > 0);
+    // THE GATEKEEPER: Prevent blind rendering without constraints
+    if (loc === "All" && searchInput.trim() === "") {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
+            🔍 Please select a specific Location or enter a Search Term to display items.
+        </td></tr>`;
+        const countSpan = document.getElementById('inventory-count');
+        if (countSpan) countSpan.innerText = `0 Items`;
+        
+        const btnBulkDelete = document.getElementById('btn-bulk-delete');
+        if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
+        return;
+    }
     
+    const searchTerms = searchInput.split(' ').filter(term => term.length > 0);
     tbody.innerHTML = '';
     
     const filteredData = currentInventory.filter(item => {
-        // 1. Check Location Match
         const matchesLocation = (loc === "All" || item.location === loc);
-        
-        // 2. Google-Like Match: EVERY search term must be present in either title OR description
         const matchesSearch = searchTerms.every(term => 
             item.title.toLowerCase().includes(term) || 
             item.description.toLowerCase().includes(term)
@@ -513,7 +509,7 @@ window.renderInventoryTable = function() {
             <td style="text-align: center;">
                 <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
             </td>
-            <td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;"></td>
+            <td><span style="font-size: 1.5rem; display: block; text-align: center;">📦</span></td>
             <td style="font-weight: bold;">${item.title}</td>
             <td style="color: #666;">${item.description.substring(0, 25)}...</td>
             <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location}</span></td>
@@ -562,8 +558,8 @@ window.bulkDeleteItems = async function() {
     }
 }
 
-function openModal(item) {
-    document.getElementById('modal-img').src = item.image_base64 || '';
+// Convert openModal to ASYNC to pull images on-demand
+async function openModal(item) {
     document.getElementById('modal-title-input').value = item.title;
     document.getElementById('modal-desc-input').value = item.description;
     window.activeItemId = item.id;
@@ -576,8 +572,35 @@ function openModal(item) {
         modalInput.classList.add('hidden');
         modalInput.value = "";
     }
+    
+    const modalImg = document.getElementById('modal-img');
+    if (modalImg) {
+        // Quick loading placeholder overlay
+        modalImg.src = "data:image/svg+xml,%3Csvg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e9ecef'/%3E%3Ctext x='50' y='50' font-family='Arial' font-size='12' fill='%236c757d' text-anchor='middle' dominant-baseline='middle'%3ELoading Image...%3C/text%3E%3C/svg%3E";
+        modalImg.style.background = "#e9ecef";
+    }
 
     document.getElementById('item-modal').classList.remove('hidden');
+
+    // On-Demand Egress Hit for the full Base64 String
+    try {
+        const { data, error } = await mySupabaseDb
+            .from('items')
+            .select('image_base64')
+            .eq('id', item.id)
+            .single();
+            
+        if (error) throw error;
+        
+        trackEgressPayload(data); // Log heavy image payload
+        
+        if (data && modalImg) {
+            modalImg.src = data.image_base64 || '';
+        }
+    } catch (err) {
+        console.error("Error loading image on-demand:", err);
+        if (modalImg) modalImg.src = ""; 
+    }
 }
 
 window.saveModalChanges = async () => {
@@ -625,6 +648,12 @@ async function loadAdminDashboard() {
 
     document.getElementById('gemini-daily-count').innerText = currentGeminiUsage;
     document.getElementById('supabase-monthly-count').innerText = currentSupabaseUsage;
+    
+    // Bind the egress tracking nodes
+    const egressText = document.getElementById('supabase-egress-count');
+    const egressBar = document.getElementById('egress-progress');
+    if (egressText) egressText.innerText = currentEgressUsage.toFixed(2);
+    if (egressBar) egressBar.value = currentEgressUsage;
 
     document.getElementById('input-gemini-limit').value = GEMINI_DAILY_LIMIT;
     document.getElementById('input-supabase-limit').value = SUPABASE_MONTHLY_LIMIT;
@@ -703,7 +732,6 @@ window.logout = async () => {
     location.reload(); 
 };
 
-// Auto-check login status
 if (mySupabaseDb) {
     mySupabaseDb.auth.onAuthStateChange((event, session) => {
         if (session) {
@@ -726,7 +754,6 @@ if (mySupabaseDb) {
             if (accountCreatedDisplay) accountCreatedDisplay.innerText = createdDate;
             if (accountLastSigninDisplay) accountLastSigninDisplay.innerText = lastSignInDate;
 
-            // Admin button visibility toggle
             if (ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
                 document.getElementById('admin-controls').classList.remove('hidden');
             } else {
@@ -746,9 +773,7 @@ if (mySupabaseDb) {
 let pwaTouchstartY = 0;
 let pwaTouchendY = 0;
 
-// Listen to the entire document or a specific scrollable container
 document.addEventListener('touchstart', e => {
-    // Only register the start if we are at the very top of the page
     if (window.scrollY === 0) {
         pwaTouchstartY = e.changedTouches[0].screenY;
     }
@@ -758,14 +783,9 @@ document.addEventListener('touchend', e => {
     if (window.scrollY === 0) {
         pwaTouchendY = e.changedTouches[0].screenY;
         
-        // If the user pulled down more than 150 pixels, trigger the hard reset
         if (pwaTouchendY > pwaTouchstartY + 150) {
-            
-            // Optional visual feedback before reload
             document.body.style.opacity = "0.5"; 
             document.body.style.transition = "opacity 0.2s ease";
-            
-            // Hard reload clears memory leaks and restores baseline predictability 
             location.reload(); 
         }
     }
