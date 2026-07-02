@@ -430,9 +430,11 @@ async function loadInventory() {
     if (!mySupabaseDb) return;
     
     const loc = document.getElementById('inventory-filter').value;
+    const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.trim() : "";
     
-    if (loc === "All") {
-        alert("Please select a specific location to fetch items. Searching 'All Locations' directly uses too much bandwidth.");
+    // UPDATED GATEKEEPER: Only block if BOTH are empty/default
+    if (loc === "All" && searchInput === "") {
+        alert("Please select a specific location or enter a search term to fetch items.");
         return;
     }
 
@@ -443,17 +445,30 @@ async function loadInventory() {
     if(loadingDiv) {
         loadingDiv.innerHTML = `
             <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
-            <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Syncing Location from Cloud...</span>
+            <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Syncing from Cloud...</span>
         `;
         loadingDiv.classList.remove('hidden');
     }
 
     try {
-        // Build Server-Side Query specifically targeting the selected location
-        let query = mySupabaseDb.from('items')
-            .select('*')
-            .eq('location', loc)
-            .order('created_at', { ascending: false });
+        // Build Server-Side Query
+        let query = mySupabaseDb.from('items').select('*').order('created_at', { ascending: false });
+        
+        // 1. Apply Server Location Filter
+        if (loc !== "All") {
+            query = query.eq('location', loc);
+        }
+        
+        // 2. Apply Server Text Filter (Protects Bandwidth on "All Locations")
+        if (searchInput !== "") {
+            const searchTerms = searchInput.split(' ').filter(term => term.length > 0);
+            if (searchTerms.length > 0) {
+                // We use the first word to drastically reduce the payload from the server.
+                // The local render function will apply the strict multi-word matching afterward!
+                const firstTerm = searchTerms[0];
+                query = query.or(`title.ilike.%${firstTerm}%,description.ilike.%${firstTerm}%`);
+            }
+        }
             
         const { data, error } = await query;
         if (error) throw new Error("Database Fetch Exception: " + error.message);
@@ -480,8 +495,9 @@ window.renderInventoryTable = function() {
     const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
     if (currentInventory.length === 0) {
+        // Updated empty state text to reflect new search capabilities
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
-            🔍 Please select a specific Location, then click <strong>Fetch</strong>.
+            🔍 Please select a specific Location or enter a Search Term, then click <strong>Fetch</strong>.
         </td></tr>`;
         const countSpan = document.getElementById('inventory-count');
         if (countSpan) countSpan.innerText = `0 Items`;
@@ -492,7 +508,7 @@ window.renderInventoryTable = function() {
     tbody.innerHTML = '';
     
     const filteredData = currentInventory.filter(item => {
-        // Enforce dropdown match incase user changes dropdown but doesn't press fetch
+        // Enforce dropdown match in case user changes dropdown but doesn't press fetch
         const matchesLocation = (loc === "All" || item.location === loc); 
         
         // Google-Like Local Search matching
