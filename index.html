@@ -230,6 +230,19 @@
                 <progress id="supabase-progress" value="0" max="47500" style="width: 100%; height: 10px;"></progress>
             </div>
             
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                <h3 style="margin-bottom: 10px; margin-top: 0;">🌐 Bandwidth Egress</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span>Data Used: <span id="supabase-egress-count" style="font-weight: bold;">0.00</span> MB</span>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="font-size: 0.85rem; color: gray;">Limit:</span>
+                        <input type="number" value="5120" readonly style="width: 100px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; text-align: center; background: #f8f9fa;">
+                    </div>
+                </div>
+                <progress id="egress-progress" value="0" max="5120" style="width: 100%; height: 10px;"></progress>
+                <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: #6c757d; text-align: center;">(Free Tier Limit is roughly 5 GB / 5,120 MB)</p>
+            </div>
+
             <button id="btn-save-limits" style="background: #28a745; color: white; border: none; border-radius: 8px; padding: 12px; width: 100%; font-weight: bold; margin-bottom: 10px;">
                 💾 Save New Limits
             </button>
