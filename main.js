@@ -432,13 +432,13 @@ async function loadInventory() {
             }
             
             const { data, error } = await mySupabaseDb.from('items')
-                .select('id, created_at, title, description, location') // Strict egress exclusion of image_base64
+                .select('*') // <--- BROUGHT BACK '*' TO INCLUDE IMAGES
                 .order('created_at', { ascending: false })
                 .range(i, i + pageSize - 1);
                 
             if (error) throw new Error(`Batch Exception at offset ${i}: ` + error.message);
             
-            trackEgressPayload(data); // Log text footprint
+            trackEgressPayload(data); 
             allData = allData.concat(data);
         }
         
@@ -461,7 +461,7 @@ window.renderInventoryTable = function() {
     const loc = document.getElementById('inventory-filter').value;
     const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
-    // THE GATEKEEPER: Prevent blind rendering without constraints
+    // THE GATEKEEPER remains intact
     if (loc === "All" && searchInput.trim() === "") {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
             🔍 Please select a specific Location or enter a Search Term to display items.
@@ -509,13 +509,32 @@ window.renderInventoryTable = function() {
             <td style="text-align: center;">
                 <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
             </td>
-            <td><span style="font-size: 1.5rem; display: block; text-align: center;">📦</span></td>
+            <td><img src="${item.image_base64 || ''}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;"></td>
             <td style="font-weight: bold;">${item.title}</td>
             <td style="color: #666;">${item.description.substring(0, 25)}...</td>
             <td><span style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display:inline-block; white-space:nowrap;">📍 ${item.location}</span></td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+// Reverted openModal since images are back in memory!
+function openModal(item) {
+    document.getElementById('modal-img').src = item.image_base64 || '';
+    document.getElementById('modal-title-input').value = item.title;
+    document.getElementById('modal-desc-input').value = item.description;
+    window.activeItemId = item.id;
+
+    const modalSelect = document.getElementById('modal-location-select');
+    const modalInput = document.getElementById('modal-location-input');
+    
+    if (modalSelect) {
+        modalSelect.value = item.location;
+        modalInput.classList.add('hidden');
+        modalInput.value = "";
+    }
+
+    document.getElementById('item-modal').classList.remove('hidden');
 }
 
 window.toggleSelectAll = function() {
@@ -768,7 +787,7 @@ if (mySupabaseDb) {
 }
 
 // ==========================================================================
-// 9. NATIVE PULL-TO-REFRESH MECHANICS
+// 9. NATIVE PULL-TO-REFRESH MECHANICS (Context-Aware)
 // ==========================================================================
 let pwaTouchstartY = 0;
 let pwaTouchendY = 0;
@@ -784,9 +803,19 @@ document.addEventListener('touchend', e => {
         pwaTouchendY = e.changedTouches[0].screenY;
         
         if (pwaTouchendY > pwaTouchstartY + 150) {
-            document.body.style.opacity = "0.5"; 
-            document.body.style.transition = "opacity 0.2s ease";
-            location.reload(); 
+            
+            // Check which panel is currently active
+            const activePanel = document.querySelector('.view-panel:not(.hidden)');
+            
+            if (activePanel && activePanel.id === 'screen-manage') {
+                // SOFT REFRESH: Just reload the database data, don't break the UI
+                loadInventory(); 
+            } else {
+                // HARD REFRESH: If on home or settings, do a full app reset
+                document.body.style.opacity = "0.5"; 
+                document.body.style.transition = "opacity 0.2s ease";
+                location.reload(); 
+            }
         }
     }
 }, { passive: true });
