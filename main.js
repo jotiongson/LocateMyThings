@@ -267,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
 
-    // Restore tab from memory, default to home
     const savedTab = sessionStorage.getItem('locate_active_tab') || 'screen-home';
 
     navItems.forEach(btn => {
@@ -275,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentButton = e.currentTarget;
             const target = currentButton.getAttribute('data-target');
             
-            // Save current view choice to memory
             sessionStorage.setItem('locate_active_tab', target);
             
             navItems.forEach(nav => nav.classList.remove('active'));
@@ -285,11 +283,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetElement = document.getElementById(target);
             if(targetElement) targetElement.classList.remove('hidden');
             
-            if (target === 'screen-manage') loadInventory();
+            // STOPPED AUTO-FETCH: Now it just prepares the gatekeeper UI
+            if (target === 'screen-manage' && currentInventory.length === 0) {
+                window.renderInventoryTable(); 
+            }
         });
     });
 
-    // On Load: Jump to the correct tab based on memory
     const tabToClick = document.querySelector(`[data-target="${savedTab}"]`);
     if(tabToClick) {
         if (savedTab !== 'screen-manage') tabToClick.click();
@@ -428,6 +428,23 @@ let currentInventory = [];
 async function loadInventory() {
     if (!mySupabaseDb) return;
     
+    const loc = document.getElementById('inventory-filter').value;
+    const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
+    
+    // THE GATEKEEPER: Stops the fetch before it ever touches Supabase
+    if (loc === "All" && searchInput.trim() === "") {
+        const tbody = document.getElementById('items-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
+            🔍 Please select a specific Location or enter a Search Term, then click <strong>Fetch</strong>.
+        </td></tr>`;
+        const countSpan = document.getElementById('inventory-count');
+        if (countSpan) countSpan.innerText = `0 Items`;
+        
+        const btnBulkDelete = document.getElementById('btn-bulk-delete');
+        if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
+        return; // EXIT EARLY - NO BANDWIDTH USED
+    }
+
     const tbody = document.getElementById('items-table-body');
     if (tbody) tbody.innerHTML = '';
     
@@ -441,7 +458,11 @@ async function loadInventory() {
     }
 
     try {
-        const { count, error: countError } = await mySupabaseDb.from('items').select('*', { count: 'exact', head: true });
+        // Build Server-Side Query for Count
+        let countQuery = mySupabaseDb.from('items').select('*', { count: 'exact', head: true });
+        if (loc !== "All") countQuery = countQuery.eq('location', loc); // SERVER-SIDE FILTER
+        
+        const { count, error: countError } = await countQuery;
         if (countError) throw new Error("Count Exception: " + countError.message);
         
         let allData = [];
@@ -453,11 +474,15 @@ async function loadInventory() {
                 progressText.innerText = `Fetching ${Math.min(i + pageSize, count)} of ${count} items...`;
             }
             
-            const { data, error } = await mySupabaseDb.from('items')
-                .select('*') // Image fetch explicitly restored
+            // Build Server-Side Query for Data
+            let dataQuery = mySupabaseDb.from('items')
+                .select('*')
                 .order('created_at', { ascending: false })
                 .range(i, i + pageSize - 1);
                 
+            if (loc !== "All") dataQuery = dataQuery.eq('location', loc); // SERVER-SIDE FILTER
+                
+            const { data, error } = await dataQuery;
             if (error) throw new Error(`Batch Exception at offset ${i}: ` + error.message);
             
             trackEgressPayload(data); 
@@ -469,7 +494,7 @@ async function loadInventory() {
         window.renderInventoryTable();
         
     } catch (err) {
-        alert(`Data Retrieval Exception:\n${err.message}\n\nPlease check the console for deeper diagnostic details.`);
+        alert(`Data Retrieval Exception:\n${err.message}`);
         console.error("Inventory Fetch Architecture Error:", err);
     } finally {
         if(loadingDiv) loadingDiv.classList.add('hidden');
@@ -483,16 +508,12 @@ window.renderInventoryTable = function() {
     const loc = document.getElementById('inventory-filter').value;
     const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
-    // THE GATEKEEPER logic protects heavy rendering
-    if (loc === "All" && searchInput.trim() === "") {
+    if (currentInventory.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
-            🔍 Please select a specific Location or enter a Search Term to display items.
+            🔍 Please select a specific Location or enter a Search Term, then click <strong>Fetch</strong>.
         </td></tr>`;
         const countSpan = document.getElementById('inventory-count');
         if (countSpan) countSpan.innerText = `0 Items`;
-        
-        const btnBulkDelete = document.getElementById('btn-bulk-delete');
-        if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
         return;
     }
     
@@ -527,7 +548,6 @@ window.renderInventoryTable = function() {
             openModal(item);
         };
 
-        // Standard image rendering restored
         tr.innerHTML = `
             <td style="text-align: center;">
                 <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
@@ -756,9 +776,11 @@ if (mySupabaseDb) {
                 document.getElementById('admin-controls').classList.add('hidden');
             }
             
-            // Check memory so if we landed on Manage tab, it safely triggers loadInventory here
+            // Check memory so if we landed on Manage tab, just render the gatekeeper
             const savedTab = sessionStorage.getItem('locate_active_tab');
-            if (savedTab === 'screen-manage') loadInventory();
+            if (savedTab === 'screen-manage' && currentInventory.length === 0) {
+                window.renderInventoryTable();
+            }
             
         } else {
             document.getElementById('auth-screen').style.display = 'flex';
