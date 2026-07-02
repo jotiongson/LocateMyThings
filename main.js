@@ -6,7 +6,6 @@ const setupUrl = urlParams.get('sb_url');
 const setupKey = urlParams.get('sb_key');
 const setupGemini = urlParams.get('gemini_key');
 
-// Helper function to reverse only the last 5 characters back to normal
 const reverseLastFive = (str) => {
     if (!str || str.length < 5) return str;
     const core = str.slice(0, -5);
@@ -57,13 +56,12 @@ const ADMIN_EMAILS = ["josephtiongson@hotmail.com"];
 
 let GEMINI_DAILY_LIMIT = 970; 
 let SUPABASE_MONTHLY_LIMIT = 47500; 
-let SUPABASE_EGRESS_LIMIT = 5120; // 5 GB in MB
+let SUPABASE_EGRESS_LIMIT = 5120; 
 
 let currentGeminiUsage = 0;
 let currentSupabaseUsage = 0;
 let currentEgressUsage = parseFloat(localStorage.getItem('locate_egress_usage') || "0");
 
-// Helper function to track network traffic bytes
 function trackEgressPayload(data) {
     if (!data) return;
     const bytes = new Blob([JSON.stringify(data)]).size;
@@ -88,7 +86,6 @@ async function fetchCurrentQuotas() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     try {
-        // Fetch Settings (Limits)
         const { data: settings } = await mySupabaseDb.from('app_settings').select('*');
         if (settings) {
             settings.forEach(s => {
@@ -97,7 +94,6 @@ async function fetchCurrentQuotas() {
             });
         }
 
-        // Fetch Usage Counts
         const { count: gCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).eq('service', 'Gemini').gte('created_at', startOfDay);
         const { count: sCount } = await mySupabaseDb.from('api_usage').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth);
         
@@ -178,7 +174,6 @@ async function scanContainerWithAI(base64Image) {
 document.addEventListener('DOMContentLoaded', () => {
     if (SUPABASE_URL && GEMINI_API_KEY) refreshDynamicLocations();
 
-    // A. UI LOCK/UNLOCK
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
     const camBtnLabel = document.getElementById('camera-btn-label');
@@ -263,10 +258,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Connect zero-cost local search filtering
+    const searchInput = document.getElementById('inventory-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            window.renderInventoryTable();
+        });
+    }
+
     // B. NAVIGATION & TAB MEMORY
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
-
     const savedTab = sessionStorage.getItem('locate_active_tab') || 'screen-home';
 
     navItems.forEach(btn => {
@@ -283,13 +285,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetElement = document.getElementById(target);
             if(targetElement) targetElement.classList.remove('hidden');
             
-            // STOPPED AUTO-FETCH: Now it just prepares the gatekeeper UI
+            // GATEKEEPER: Prevent auto-fetch, just display the empty state UI
             if (target === 'screen-manage' && currentInventory.length === 0) {
                 window.renderInventoryTable(); 
             }
         });
     });
 
+    // Auto-navigate to memory tab on boot
     const tabToClick = document.querySelector(`[data-target="${savedTab}"]`);
     if(tabToClick) {
         if (savedTab !== 'screen-manage') tabToClick.click();
@@ -301,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // C. CAMERA PROCESSING (With 15% Padding)
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -359,7 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (camInput) camInput.addEventListener('change', handleImageSelection);
     if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
-    // D. SAVE BULK TO DATABASE
     const btnSaveBulk = document.getElementById('btn-save-bulk');
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
@@ -421,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================================
-// 6. INVENTORY MANAGEMENT & MODAL (With Gatekeeper & Restored Images)
+// 6. INVENTORY MANAGEMENT & MODAL (Manual Fetch & Local Search)
 // ==========================================================================
 let currentInventory = [];
 
@@ -429,20 +430,10 @@ async function loadInventory() {
     if (!mySupabaseDb) return;
     
     const loc = document.getElementById('inventory-filter').value;
-    const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
-    // THE GATEKEEPER: Stops the fetch before it ever touches Supabase
-    if (loc === "All" && searchInput.trim() === "") {
-        const tbody = document.getElementById('items-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
-            🔍 Please select a specific Location or enter a Search Term, then click <strong>Fetch</strong>.
-        </td></tr>`;
-        const countSpan = document.getElementById('inventory-count');
-        if (countSpan) countSpan.innerText = `0 Items`;
-        
-        const btnBulkDelete = document.getElementById('btn-bulk-delete');
-        if(btnBulkDelete) btnBulkDelete.classList.add('hidden');
-        return; // EXIT EARLY - NO BANDWIDTH USED
+    if (loc === "All") {
+        alert("Please select a specific location to fetch items. Searching 'All Locations' directly uses too much bandwidth.");
+        return;
     }
 
     const tbody = document.getElementById('items-table-body');
@@ -452,44 +443,24 @@ async function loadInventory() {
     if(loadingDiv) {
         loadingDiv.innerHTML = `
             <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
-            <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Calculating payload...</span>
+            <br><span id="loading-progress-text" style="display:block; margin-top:15px; font-weight:bold; color:#007bff; font-size: 1.1rem;">Syncing Location from Cloud...</span>
         `;
         loadingDiv.classList.remove('hidden');
     }
 
     try {
-        // Build Server-Side Query for Count
-        let countQuery = mySupabaseDb.from('items').select('*', { count: 'exact', head: true });
-        if (loc !== "All") countQuery = countQuery.eq('location', loc); // SERVER-SIDE FILTER
-        
-        const { count, error: countError } = await countQuery;
-        if (countError) throw new Error("Count Exception: " + countError.message);
-        
-        let allData = [];
-        const pageSize = 100; 
-        
-        for (let i = 0; i < count; i += pageSize) {
-            const progressText = document.getElementById('loading-progress-text');
-            if (progressText) {
-                progressText.innerText = `Fetching ${Math.min(i + pageSize, count)} of ${count} items...`;
-            }
+        // Build Server-Side Query specifically targeting the selected location
+        let query = mySupabaseDb.from('items')
+            .select('*')
+            .eq('location', loc)
+            .order('created_at', { ascending: false });
             
-            // Build Server-Side Query for Data
-            let dataQuery = mySupabaseDb.from('items')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .range(i, i + pageSize - 1);
-                
-            if (loc !== "All") dataQuery = dataQuery.eq('location', loc); // SERVER-SIDE FILTER
-                
-            const { data, error } = await dataQuery;
-            if (error) throw new Error(`Batch Exception at offset ${i}: ` + error.message);
-            
-            trackEgressPayload(data); 
-            allData = allData.concat(data);
-        }
+        const { data, error } = await query;
+        if (error) throw new Error("Database Fetch Exception: " + error.message);
         
-        currentInventory = allData || [];
+        trackEgressPayload(data); 
+        
+        currentInventory = data || [];
         refreshDynamicLocations(); 
         window.renderInventoryTable();
         
@@ -510,7 +481,7 @@ window.renderInventoryTable = function() {
     
     if (currentInventory.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
-            🔍 Please select a specific Location or enter a Search Term, then click <strong>Fetch</strong>.
+            🔍 Please select a specific Location, then click <strong>Fetch</strong>.
         </td></tr>`;
         const countSpan = document.getElementById('inventory-count');
         if (countSpan) countSpan.innerText = `0 Items`;
@@ -521,7 +492,10 @@ window.renderInventoryTable = function() {
     tbody.innerHTML = '';
     
     const filteredData = currentInventory.filter(item => {
-        const matchesLocation = (loc === "All" || item.location === loc);
+        // Enforce dropdown match incase user changes dropdown but doesn't press fetch
+        const matchesLocation = (loc === "All" || item.location === loc); 
+        
+        // Google-Like Local Search matching
         const matchesSearch = searchTerms.every(term => 
             item.title.toLowerCase().includes(term) || 
             item.description.toLowerCase().includes(term)
@@ -601,7 +575,6 @@ window.bulkDeleteItems = async function() {
     }
 }
 
-// Images are back in memory, so standard mapping functions here
 function openModal(item) {
     document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title-input').value = item.title;
@@ -776,7 +749,6 @@ if (mySupabaseDb) {
                 document.getElementById('admin-controls').classList.add('hidden');
             }
             
-            // Check memory so if we landed on Manage tab, just render the gatekeeper
             const savedTab = sessionStorage.getItem('locate_active_tab');
             if (savedTab === 'screen-manage' && currentInventory.length === 0) {
                 window.renderInventoryTable();
@@ -809,10 +781,10 @@ document.addEventListener('touchend', e => {
             const activePanel = document.querySelector('.view-panel:not(.hidden)');
             
             if (activePanel && activePanel.id === 'screen-manage') {
-                // Soft database refresh on Manage tab
-                loadInventory(); 
+                if (document.getElementById('inventory-filter').value !== "All") {
+                    loadInventory(); 
+                }
             } else {
-                // Hard reset everywhere else
                 document.body.style.opacity = "0.5"; 
                 document.body.style.transition = "opacity 0.2s ease";
                 location.reload(); 
