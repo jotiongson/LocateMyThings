@@ -178,6 +178,7 @@ async function scanContainerWithAI(base64Image) {
 document.addEventListener('DOMContentLoaded', () => {
     if (SUPABASE_URL && GEMINI_API_KEY) refreshDynamicLocations();
 
+    // A. UI LOCK/UNLOCK
     const locSelect = document.getElementById('location-select');
     const newLocInput = document.getElementById('new-location-input-home');
     const camBtnLabel = document.getElementById('camera-btn-label');
@@ -262,13 +263,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // B. NAVIGATION & TAB MEMORY
     const navItems = document.querySelectorAll('.nav-item');
     const viewPanels = document.querySelectorAll('.view-panel');
+
+    // Restore tab from memory, default to home
+    const savedTab = sessionStorage.getItem('locate_active_tab') || 'screen-home';
 
     navItems.forEach(btn => {
         btn.addEventListener('click', (e) => {
             const currentButton = e.currentTarget;
             const target = currentButton.getAttribute('data-target');
+            
+            // Save current view choice to memory
+            sessionStorage.setItem('locate_active_tab', target);
             
             navItems.forEach(nav => nav.classList.remove('active'));
             currentButton.classList.add('active');
@@ -281,6 +289,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // On Load: Jump to the correct tab based on memory
+    const tabToClick = document.querySelector(`[data-target="${savedTab}"]`);
+    if(tabToClick) {
+        if (savedTab !== 'screen-manage') tabToClick.click();
+        else {
+            navItems.forEach(nav => nav.classList.remove('active'));
+            tabToClick.classList.add('active');
+            viewPanels.forEach(p => p.classList.add('hidden'));
+            document.getElementById(savedTab).classList.remove('hidden');
+        }
+    }
+
+    // C. CAMERA PROCESSING (With 15% Padding)
     const handleImageSelection = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -338,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (camInput) camInput.addEventListener('change', handleImageSelection);
     if (uploadInput) uploadInput.addEventListener('change', handleImageSelection);
 
+    // D. SAVE BULK TO DATABASE
     const btnSaveBulk = document.getElementById('btn-save-bulk');
     if (btnSaveBulk) {
         btnSaveBulk.addEventListener('click', async () => {
@@ -399,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================================================
-// 6. INVENTORY MANAGEMENT & MODAL (With Search & Egress Limits)
+// 6. INVENTORY MANAGEMENT & MODAL (With Gatekeeper & Restored Images)
 // ==========================================================================
 let currentInventory = [];
 
@@ -432,7 +454,7 @@ async function loadInventory() {
             }
             
             const { data, error } = await mySupabaseDb.from('items')
-                .select('*') // <--- BROUGHT BACK '*' TO INCLUDE IMAGES
+                .select('*') // Image fetch explicitly restored
                 .order('created_at', { ascending: false })
                 .range(i, i + pageSize - 1);
                 
@@ -461,7 +483,7 @@ window.renderInventoryTable = function() {
     const loc = document.getElementById('inventory-filter').value;
     const searchInput = document.getElementById('inventory-search') ? document.getElementById('inventory-search').value.toLowerCase() : "";
     
-    // THE GATEKEEPER remains intact
+    // THE GATEKEEPER logic protects heavy rendering
     if (loc === "All" && searchInput.trim() === "") {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 35px; color:#6c757d; font-size: 1.05rem;">
             🔍 Please select a specific Location or enter a Search Term to display items.
@@ -505,6 +527,7 @@ window.renderInventoryTable = function() {
             openModal(item);
         };
 
+        // Standard image rendering restored
         tr.innerHTML = `
             <td style="text-align: center;">
                 <input type="checkbox" class="row-cb" value="${item.id}" onchange="checkBulkDeleteStatus()">
@@ -516,25 +539,6 @@ window.renderInventoryTable = function() {
         `;
         tbody.appendChild(tr);
     });
-}
-
-// Reverted openModal since images are back in memory!
-function openModal(item) {
-    document.getElementById('modal-img').src = item.image_base64 || '';
-    document.getElementById('modal-title-input').value = item.title;
-    document.getElementById('modal-desc-input').value = item.description;
-    window.activeItemId = item.id;
-
-    const modalSelect = document.getElementById('modal-location-select');
-    const modalInput = document.getElementById('modal-location-input');
-    
-    if (modalSelect) {
-        modalSelect.value = item.location;
-        modalInput.classList.add('hidden');
-        modalInput.value = "";
-    }
-
-    document.getElementById('item-modal').classList.remove('hidden');
 }
 
 window.toggleSelectAll = function() {
@@ -577,8 +581,9 @@ window.bulkDeleteItems = async function() {
     }
 }
 
-// Convert openModal to ASYNC to pull images on-demand
-async function openModal(item) {
+// Images are back in memory, so standard mapping functions here
+function openModal(item) {
+    document.getElementById('modal-img').src = item.image_base64 || '';
     document.getElementById('modal-title-input').value = item.title;
     document.getElementById('modal-desc-input').value = item.description;
     window.activeItemId = item.id;
@@ -591,35 +596,8 @@ async function openModal(item) {
         modalInput.classList.add('hidden');
         modalInput.value = "";
     }
-    
-    const modalImg = document.getElementById('modal-img');
-    if (modalImg) {
-        // Quick loading placeholder overlay
-        modalImg.src = "data:image/svg+xml,%3Csvg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e9ecef'/%3E%3Ctext x='50' y='50' font-family='Arial' font-size='12' fill='%236c757d' text-anchor='middle' dominant-baseline='middle'%3ELoading Image...%3C/text%3E%3C/svg%3E";
-        modalImg.style.background = "#e9ecef";
-    }
 
     document.getElementById('item-modal').classList.remove('hidden');
-
-    // On-Demand Egress Hit for the full Base64 String
-    try {
-        const { data, error } = await mySupabaseDb
-            .from('items')
-            .select('image_base64')
-            .eq('id', item.id)
-            .single();
-            
-        if (error) throw error;
-        
-        trackEgressPayload(data); // Log heavy image payload
-        
-        if (data && modalImg) {
-            modalImg.src = data.image_base64 || '';
-        }
-    } catch (err) {
-        console.error("Error loading image on-demand:", err);
-        if (modalImg) modalImg.src = ""; 
-    }
 }
 
 window.saveModalChanges = async () => {
@@ -668,7 +646,6 @@ async function loadAdminDashboard() {
     document.getElementById('gemini-daily-count').innerText = currentGeminiUsage;
     document.getElementById('supabase-monthly-count').innerText = currentSupabaseUsage;
     
-    // Bind the egress tracking nodes
     const egressText = document.getElementById('supabase-egress-count');
     const egressBar = document.getElementById('egress-progress');
     if (egressText) egressText.innerText = currentEgressUsage.toFixed(2);
@@ -779,6 +756,10 @@ if (mySupabaseDb) {
                 document.getElementById('admin-controls').classList.add('hidden');
             }
             
+            // Check memory so if we landed on Manage tab, it safely triggers loadInventory here
+            const savedTab = sessionStorage.getItem('locate_active_tab');
+            if (savedTab === 'screen-manage') loadInventory();
+            
         } else {
             document.getElementById('auth-screen').style.display = 'flex';
             document.getElementById('app-content').classList.add('hidden');
@@ -803,15 +784,13 @@ document.addEventListener('touchend', e => {
         pwaTouchendY = e.changedTouches[0].screenY;
         
         if (pwaTouchendY > pwaTouchstartY + 150) {
-            
-            // Check which panel is currently active
             const activePanel = document.querySelector('.view-panel:not(.hidden)');
             
             if (activePanel && activePanel.id === 'screen-manage') {
-                // SOFT REFRESH: Just reload the database data, don't break the UI
+                // Soft database refresh on Manage tab
                 loadInventory(); 
             } else {
-                // HARD REFRESH: If on home or settings, do a full app reset
+                // Hard reset everywhere else
                 document.body.style.opacity = "0.5"; 
                 document.body.style.transition = "opacity 0.2s ease";
                 location.reload(); 
